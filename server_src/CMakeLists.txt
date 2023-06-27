@@ -4,9 +4,31 @@
 
 # Source:
 set (SOURCEFILES
+  server_src/ambient_friction.cpp
+  server_src/ambient_viscous.cpp
+  server_src/event_mgr.cpp
+  server_src/force_effect.h
+  server_src/graphics.cpp
+  server_src/line_constraint.cpp
+  server_src/point_constraint.cpp
+  server_src/surface_constraint.cpp
+  server_src/touch_surface.cpp
   server_src/main.cpp
+  server_src/phantom.cpp
 )
+
 set (HEADERFILES
+  server_src/ambient_friction.h
+  server_src/ambient_viscous.h
+  server_src/event_mgr.h
+  server_src/force_effect.h
+  server_src/force_messages.h
+  server_src/graphics.h
+  server_src/line_constraint.h
+  server_src/point_constraint.h
+  server_src/surface_constraint.h
+  server_src/touch_surface.h
+  server_src/phantom.h
 )
 
 

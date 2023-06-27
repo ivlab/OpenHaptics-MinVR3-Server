@@ -1,7 +1,7 @@
 # This file is part of the MinVR3 cmake build system.  
 # See the main ../CMakeLists.txt file for details.
 
-project(force-server-test)
+project(force-server-example-client)
 
 
 # Source:
