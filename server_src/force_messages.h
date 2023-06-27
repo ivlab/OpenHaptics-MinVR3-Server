@@ -4,29 +4,41 @@
 #include <string>
 #include <vector>
 
+#define PHANTOM_PRIMARY_DOWN_EVENT_NAME "Phantom/Primary DOWN"
+#define PHANTOM_PRIMARY_UP_EVENT_NAME "Phantom/Primary DOWN"
+#define PHANTOM_POSITION_UPDATE_EVENT_NAME "Phantom/Position"
+#define PHANTOM_ROTATION_UPDATE_EVENT_NAME "Phantom/Position"
+
+#define PHANTOM_FORCE_EFFECT_EVENT_BASE_NAME_PART "ForceEffect"
+#define PHANTOM_FORCE_EFFECT_EVENT_ACTIVE_NAME_PART "Active"
+#define PHANTOM_FORCE_EFFECT_EVENT_PARAM_NAME_PART "Param"
+
+
 class ForceMessages {
 public:
-    // Phantom Event Names
-    static const std::string k_primary_down = "Phantom/Primary DOWN";
-    static const std::string k_primary_up = "Phantom/Primary DOWN";
-    static const std::string k_position_update = "Phantom/Position";
-    static const std::string k_rotation_update = "Phantom/Rotation";
-    
-    // Force Effect Event Names
-    // 1. base is prepended to every forceffect message
-    static const std::string k_effect_base = "ForceEffect";
-    // 2. then the name of the effect is appended -- these are defined in the effect classes
-    // 3. then one of these commands is appended
-    static const std::string k_effect_active = "Active";
-    static const std::string k_effect_param = "Param";
 
-    
+    static std::string get_primary_btn_down_message_name() {
+        return std::string(PHANTOM_PRIMARY_DOWN_EVENT_NAME);
+    }
+
+    static std::string get_primary_btn_up_message_name() {
+        return std::string(PHANTOM_PRIMARY_UP_EVENT_NAME);
+    }
+
+    static std::string get_position_update_message_name() {
+        return std::string(PHANTOM_POSITION_UPDATE_EVENT_NAME);
+    }
+
+    static std::string get_rotation_update_message_name() {
+        return std::string(PHANTOM_ROTATION_UPDATE_EVENT_NAME);
+    }
+
     static std::string get_active_message_name(const std::string &effect_name) {
-        return k_effect_base + "/" + effect_name + "/" + k_effect_active;
+        return std::string(PHANTOM_FORCE_EFFECT_EVENT_BASE_NAME_PART "/") + effect_name + std::string("/" PHANTOM_FORCE_EFFECT_EVENT_ACTIVE_NAME_PART);
     }
     
     static std::string get_param_message_name(const std::string &effect_name) {
-        return k_effect_base + "/" + effect_name + "/" + k_effect_param;
+        return std::string(PHANTOM_FORCE_EFFECT_EVENT_BASE_NAME_PART "/") + effect_name + std::string("/" PHANTOM_FORCE_EFFECT_EVENT_ACTIVE_NAME_PART);
     }
     
     // splits the name up into its parts using / as the delimeter
@@ -35,7 +47,7 @@ public:
         const std::string delimiter = "/";
         size_t last = 0;
         size_t next = 0;
-        while ((next = name.find(delimiter, last)) != string::npos) {
+        while ((next = name.find(delimiter, last)) != std::string::npos) {
             tokens.push_back(name.substr(last, next-last));
             last = next + 1;
         }

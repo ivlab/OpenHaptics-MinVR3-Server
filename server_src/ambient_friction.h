@@ -3,6 +3,13 @@
 #ifndef FORCE_SERVER_AMBIENT_FRICTION_H
 #define FORCE_SERVER_AMBIENT_FRICTION_H
 
+#include <winsock2.h>
+#include <windows.h>
+
+// OpenHaptics includes
+#include <HD/hd.h>
+#include <HL/hl.h>
+
 #include <minvr3.h>
 
 #include "event_mgr.h"
@@ -25,6 +32,7 @@ public:
     void DrawGraphics();
 
 private:
+    
     HLuint effect_id_;
     HLdouble gain_;
     HLdouble magnitude_cap_;

@@ -7,7 +7,8 @@
 
 #include <iostream>
 #ifdef _WIN32
-#include <Windows.h>
+#include <winsock2.h>
+#include <windows.h>
 #else
 #include <unistd.h>
 #endif
@@ -27,24 +28,21 @@ int port = 9034;
 EventMgr* event_mgr;
 Phantom* phantom;
 Graphics* graphics;
-SOCKET listener_fd = -1;
-SOCKET client_fd = -1;
-double last_update = -1;
-
-
+SOCKET listener_fd = INVALID_SOCKET;
+SOCKET client_fd = INVALID_SOCKET;
 
 void mainloop() {
     // check for a new connection -- only one connection at a time is allowed.  new connections
     // replace the old and reset the system.
+
     if (MinVR3Net::IsReadyToRead(&listener_fd)) {
         SOCKET new_client_fd;
         if (MinVR3Net::TryAcceptConnection(listener_fd, &new_client_fd)) {
-            if (client_fd == -1) {
-                phantom.Init();
+            if (client_fd == INVALID_SOCKET) {
+                phantom->Init();
             } else {
                 MinVR3Net::CloseSocket(&client_fd);
-                phantom.Reset();
-                graphics.Reset();
+                phantom->Reset();
             }
             client_fd = new_client_fd;
         }
@@ -52,7 +50,7 @@ void mainloop() {
     
 
     // collect VREvents from input devices and over the net
-    phantom->PollForInput()();
+    phantom->PollForInput();
     while (MinVR3Net::IsReadyToRead(&client_fd)) {
         VREvent* e = MinVR3Net::ReceiveVREvent(&client_fd);
         event_mgr->QueueEvent(e);
@@ -71,7 +69,7 @@ void mainloop() {
 }
 
 
-
+ 
 int main(int argc, char** argv) {
     // optionally, override defaults with command line options
     if (argc > 1) {
@@ -87,13 +85,12 @@ int main(int argc, char** argv) {
     
     event_mgr = new EventMgr();
     phantom = new Phantom(event_mgr);
-    graphics = new Graphics(phantom, event_mgr);
+    graphics = new Graphics(event_mgr, phantom);
     
-    graphics->Init();
+    graphics->Init(argc, argv);
     phantom->Init();
     
     MinVR3Net::Init();
-    SOCKET listener_fd;
     MinVR3Net::CreateListener(port, &listener_fd);
     
     graphics->Run(mainloop);

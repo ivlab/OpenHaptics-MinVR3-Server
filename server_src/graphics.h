@@ -21,17 +21,10 @@ public:
     Graphics(EventMgr* event_mgr, Phantom* phantom);
     virtual ~Graphics();
     
-    bool Init();
+    bool Init(int argc, char** argv);
     void Run(void (*mainloop_func)(void));
     
-    void Reset();
-    void Update();
     void Draw();
-    
-    void OnPhantomPositionChange(VREvent* e);
-    void OnPhantomRotationChange(VREvent* e);
-    void OnPhantomBtnDown(VREvent* e);
-    void OnPhantomBtnUp(VREvent* e);
     
 protected:
     EventMgr *event_mgr_;

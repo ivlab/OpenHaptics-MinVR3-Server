@@ -5,7 +5,8 @@
 
 
 AmbientFriction::AmbientFriction(EventMgr* event_mgr) : gain_(0.15), magnitude_cap_(0.075) {
-    event_mgr->AddListener(ForceMessages::get_param_essage_name(Name()), this, &OnParamChange);
+    event_mgr->AddListener(this, &AmbientFriction::OnParamChange);
+    event_mgr->AddListenerByName(ForceMessages::get_param_message_name(Name()), this, &AmbientFriction::OnParamChange);
 }
 
 AmbientFriction::~AmbientFriction() {
@@ -14,8 +15,8 @@ AmbientFriction::~AmbientFriction() {
 
 void AmbientFriction::OnParamChange(VREvent* e) {
     // e.g. VREventFloat("ForceEffect/AmbientFriction/Param/Gain", 0.2)
-    std::vector<std::string> event_name_parts = ForceMessages::SplitMessageName(e->get_name());
-    if (event_name_parts == 4) { // should always pass
+    std::vector<std::string> event_name_parts = ForceMessages::split_message_name(e->get_name());
+    if (event_name_parts.size() == 4) { // should always pass
         std::string param = event_name_parts[3];
         if (param == "Gain") {
             VREventFloat* e_float = dynamic_cast<VREventFloat*>(e);
@@ -36,13 +37,13 @@ void AmbientFriction::Init() {
     effect_id_ = hlGenEffects(1);
 }
 
-void AmbientFriction::StartEffect() {
+void AmbientFriction::OnStartEffect() {
     hlEffectd(HL_EFFECT_PROPERTY_GAIN, gain_);
     hlEffectd(HL_EFFECT_PROPERTY_MAGNITUDE, magnitude_cap_);
     hlStartEffect(HL_EFFECT_FRICTION, effect_id_);
 }
 
-void AmbientFriction::StopEffect() {
+void AmbientFriction::OnStopEffect() {
     hlStopEffect(effect_id_);
 }
 

@@ -1,8 +1,11 @@
 
-#include <string>
+#include <chrono>
 #include <iostream>
+#include <string>
+#include <thread>
 
 #ifdef WIN32
+#include <winsock2.h>
 #include<windows.h>
 #else
 #include<unistd.h>
@@ -37,6 +40,9 @@ int main(int argc, char** argv) {
     
     SOCKET server_fd;
     if (MinNet::ConnectTo(ip, port, &server_fd)) {
+
+        MinVR3Net::SendVREvent(&server_fd, VREventInt("ForceEffect/Friction/Active", 1));
+
         bool done = false;
         while (!done) {
             if (MinVR3Net::IsReadyToRead(&server_fd)) {
@@ -44,14 +50,10 @@ int main(int argc, char** argv) {
                 std::cout << *e << std::endl;
                 if (e->get_name() == "Shutdown") {
                     done = true;
-                } else if (e->get_name() == "Phantom/Primary/Down") {
-                    
-                } else if (e->get_name() == "Phantom/Primary/Up") {
-                    
                 }
                 delete e;
             }
-            sleep(0.1f);
+            std::this_thread::sleep_for(std::chrono::milliseconds(100));
         }
         MinNet::CloseSocket(&server_fd);
     }

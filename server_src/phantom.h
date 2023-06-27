@@ -1,11 +1,16 @@
 #ifndef FORCE_SERVER_PHANTOM_H
 #define FORCE_SERVER_PHANTOM_H
 
-#include <string>
+#include <minvr3.h>
 
 // OpenHaptics includes
 #include <HD/hd.h>
 #include <HL/hl.h>
+
+#include <map>
+#include <string>
+
+#include "force_effect.h"
 
 class EventMgr;
 

@@ -41,6 +41,12 @@ add_executable(${PROJECT_NAME} ${HEADERFILES} ${SOURCEFILES})
 find_package(MinVR3 REQUIRED)
 target_link_libraries(${PROJECT_NAME} PUBLIC MinVR3::MinVR3)
 
+# Add dependency on OpenHaptics
+find_package(OpenHaptics REQUIRED)
+target_link_libraries(${PROJECT_NAME} PUBLIC ${OPENHAPTICS_LIBRARIES})
+target_include_directories(${PROJECT_NAME} PUBLIC ${OPENHAPTICS_INCLUDE_DIRS})
+
+
 
 # Installation:
 install(TARGETS ${PROJECT_NAME}

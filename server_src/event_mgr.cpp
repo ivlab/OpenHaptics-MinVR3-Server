@@ -20,9 +20,9 @@ void EventMgr::ProcessQueue() {
           listeners_[i]->Invoke(queue_[j]);
         }
         // if the event name matches, invoke listeners that only listen for a specific named event
-        if (named_listeners_.contains(queue_[j].get_name())) {
-            for (int k=0; k<named_listeners_[queue_[j].get_name()].size(); k++) {
-                named_listeners_[queue_[j].get_name()][k]->Invoke(queue_[j]);
+        if (named_listeners_.find(queue_[j]->get_name()) != named_listeners_.end()) {
+            for (int k=0; k<named_listeners_[queue_[j]->get_name()].size(); k++) {
+                named_listeners_[queue_[j]->get_name()][k]->Invoke(queue_[j]);
             }
         }
         // if the event name matches, invoke listeners that listen for a name that "starts with" a substring
@@ -31,7 +31,7 @@ void EventMgr::ProcessQueue() {
             for (const auto &entry : named_listeners_) {
                 if (entry.first[entry.first.length()-1] == '*') {
                     std::string entry_base_name = entry.first.substr(0, entry.first.length()-1);
-                    if (queue_[j].get_name().rfind(entry_base_name, 0) == 0) {
+                    if (queue_[j]->get_name().rfind(entry_base_name, 0) == 0) {
                         for (int k=0; k<entry.second.size(); k++) {
                             entry.second[k]->Invoke(queue_[j]);
                         }
@@ -47,16 +47,16 @@ void EventMgr::QueueForClient(VREvent *e) {
     client_queue_.push_back(e);
 }
 
-void EventMgr::UpdateClient(SOCKET *client_fd) {
+void EventMgr::ProcessClientQueue(SOCKET *client_fd) {
     for (int i=0; i<client_queue_.size(); i++) {
-        MinVR3Net::SendVREvent(client_fd, client_queue_[i]);
+        MinVR3Net::SendVREvent(client_fd, *client_queue_[i]);
     }
-    clear_queue(&client_queue);
+    clear_queue(&client_queue_);
 }
 
 void EventMgr::clear_queue(std::vector<VREvent*> *event_queue) {
-    for (int j=0; j<event_queue.size(); j++) {
-        delete event_queue[j];
+    for (int j=0; j<event_queue->size(); j++) {
+        delete (*event_queue)[j];
     }
-    event_queue.clear();
+    event_queue->clear();
 }

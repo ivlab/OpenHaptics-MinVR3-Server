@@ -12,7 +12,7 @@ Graphics::Graphics(EventMgr* event_mgr, Phantom *phantom) {
 Graphics::~Graphics() {
 }
 
-bool Graphics::Init() {
+bool Graphics::Init(int argc, char** argv) {
     glutInit(&argc, argv);
     glutInitDisplayMode(GLUT_SINGLE | GLUT_RGB | GLUT_DEPTH);
     glutInitWindowSize(1024, 768);
@@ -50,6 +50,7 @@ bool Graphics::Init() {
     glLightfv(GL_LIGHT0, GL_DIFFUSE, light0_diffuse);
     glLightfv(GL_LIGHT0, GL_POSITION, light0_direction);
     glEnable(GL_LIGHT0);
+    return true;
 }
 
 void Graphics::Run(void (*mainloop_func)(void)) {
@@ -63,10 +64,11 @@ void Graphics::Draw() {
 
     // DRAW HAPTIC CURSOR
     // from openhaptics example code
-    if (phantom_ptr_ != NULL) {
+    if (phantom_ != NULL) {
         static const double kCursorRadius = 0.5;
         static const double kCursorHeight = 1.5;
         static const int kCursorTess = 15;
+        static const double kCursorScale = 10.0;
 
         glPushAttrib(GL_CURRENT_BIT | GL_ENABLE_BIT | GL_LIGHTING_BIT);
         glPushMatrix();
@@ -82,9 +84,9 @@ void Graphics::Draw() {
         }
         
         // Get the proxy transform in world coordinates.
-        glMultMatrixd(phantom->transform());
+        glMultMatrixd(phantom_->transform());
         // Apply the local cursor scale factor.
-        glScaled(gCursorScale, gCursorScale, gCursorScale);
+        glScaled(kCursorScale, kCursorScale, kCursorScale);
         glEnable(GL_COLOR_MATERIAL);
         if (phantom_->is_primary_btn_down()) {
             glColor3f(1.0f, 0.5f, 1.0f);
