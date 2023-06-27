@@ -6,12 +6,6 @@
  */
 
 #include <iostream>
-#ifdef _WIN32
-#include <winsock2.h>
-#include <windows.h>
-#else
-#include <unistd.h>
-#endif
 
 #include <minvr3.h>
 

@@ -3,9 +3,6 @@
 #ifndef FORCE_SERVER_AMBIENT_FRICTION_H
 #define FORCE_SERVER_AMBIENT_FRICTION_H
 
-#include <winsock2.h>
-#include <windows.h>
-
 // OpenHaptics includes
 #include <HD/hd.h>
 #include <HL/hl.h>
