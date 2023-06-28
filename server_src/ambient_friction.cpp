@@ -5,33 +5,33 @@
 
 
 AmbientFriction::AmbientFriction(EventMgr* event_mgr) : gain_(0.15), magnitude_cap_(0.075) {
-    event_mgr->AddListener(this, &AmbientFriction::OnParamChange);
-    event_mgr->AddListenerByName(ForceMessages::get_param_message_name(Name()), this, &AmbientFriction::OnParamChange);
+    std::string gain_event_name = ForceMessages::get_force_effect_param_event_name("AmbientFriction", "Gain");
+    event_mgr->AddListener(gain_event_name, this, &AmbientFriction::OnGainChange);
+
+    std::string mag_event_name = ForceMessages::get_force_effect_param_event_name("AmbientFriction", "MagnitudeCap");
+    event_mgr->AddListener(mag_event_name, this, &AmbientFriction::OnMagnitudeCapChange);
 }
 
 AmbientFriction::~AmbientFriction() {
     
 }
 
-void AmbientFriction::OnParamChange(VREvent* e) {
-    // e.g. VREventFloat("ForceEffect/AmbientFriction/Param/Gain", 0.2)
-    std::vector<std::string> event_name_parts = ForceMessages::split_message_name(e->get_name());
-    if (event_name_parts.size() == 4) { // should always pass
-        std::string param = event_name_parts[3];
-        if (param == "Gain") {
-            VREventFloat* e_float = dynamic_cast<VREventFloat*>(e);
-            if (e_float != NULL) {
-                gain_ = e_float->get_data();
-            }
-        }
-        else if (param == "MagnitudeCap") {
-            VREventFloat* e_float = dynamic_cast<VREventFloat*>(e);
-            if (e_float != NULL) {
-                magnitude_cap_ = e_float->get_data();
-            }
-        }
+void AmbientFriction::OnGainChange(VREvent* e) {
+    VREventFloat* e_gain = dynamic_cast<VREventFloat*>(e);
+    if (e_gain != NULL) { // should always pass
+        // new value will be updated on the next DrawHaptics call
+        gain_ = e_gain->get_data();
     }
 }
+
+void AmbientFriction::OnMagnitudeCapChange(VREvent* e) {
+    VREventFloat* e_mag = dynamic_cast<VREventFloat*>(e);
+    if (e_mag != NULL) { // should always pass
+        // new value will be updated on the next DrawHaptics call
+        magnitude_cap_ = e_mag->get_data();
+    }
+}
+
 
 void AmbientFriction::Init() {
     effect_id_ = hlGenEffects(1);

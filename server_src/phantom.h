@@ -45,6 +45,7 @@ protected:
     HDdouble rotation_[4];
     
     std::map<std::string, ForceEffect*> effects_;
+    std::map<std::string, ForceEffect*> active_effects_;
 };
 
 

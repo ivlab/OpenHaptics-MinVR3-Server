@@ -23,8 +23,10 @@ public:
     void Init();
     void OnStartEffect();
     void OnStopEffect();
-    void OnParamChange(VREvent* e);
 
+    void OnGainChange(VREvent* e);
+    void OnMagnitudeCapChange(VREvent* e);
+ 
     void DrawHaptics();
     void DrawGraphics();
 

@@ -9,13 +9,19 @@
 
 #include <minvr3.h>
 
+#include "ambient_friction.h"
+#include "ambient_viscous.h"
 #include "event_mgr.h"
 #include "graphics.h"
+#include "line_constraint.h"
 #include "phantom.h"
+#include "point_constraint.h"
+#include "surface_constraint.h"
+#include "touch_surface.h"
+
 
 // defaults that can be adjusted via command line options
 int port = 9034;
-
 
 
 // global vars
@@ -24,6 +30,13 @@ Phantom* phantom;
 Graphics* graphics;
 SOCKET listener_fd = INVALID_SOCKET;
 SOCKET client_fd = INVALID_SOCKET;
+
+
+// force effects -- designed so that more can be easily added here
+void register_force_effects() {
+    phantom->RegisterForceEffect("AmbientFriction", new AmbientFriction(event_mgr));
+}
+
 
 void mainloop() {
     // check for a new connection -- only one connection at a time is allowed.  new connections
@@ -87,11 +100,12 @@ int main(int argc, char** argv) {
     
     graphics->Init(argc, argv);
     phantom->Init();
+    register_force_effects();
     
     MinVR3Net::Init();
     MinVR3Net::CreateListener(port, &listener_fd);
     
-    graphics->Run(mainloop);
+    graphics->Run(mainloop); // does not return until window is closed
     
     delete phantom;
     delete graphics;

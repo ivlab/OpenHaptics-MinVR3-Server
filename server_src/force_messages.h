@@ -4,41 +4,57 @@
 #include <string>
 #include <vector>
 
+// VREvent -- no additional data
 #define PHANTOM_PRIMARY_DOWN_EVENT_NAME "Phantom/Primary DOWN"
 #define PHANTOM_PRIMARY_UP_EVENT_NAME "Phantom/Primary DOWN"
+// VREventVector3
 #define PHANTOM_POSITION_UPDATE_EVENT_NAME "Phantom/Position"
+// VREventQuaternion
 #define PHANTOM_ROTATION_UPDATE_EVENT_NAME "Phantom/Position"
 
-#define PHANTOM_FORCE_EFFECT_EVENT_BASE_NAME_PART "ForceEffect"
-#define PHANTOM_FORCE_EFFECT_EVENT_ACTIVE_NAME_PART "Active"
-#define PHANTOM_FORCE_EFFECT_EVENT_PARAM_NAME_PART "Param"
+// VREventString -- string specifies the name of the effect to start/stop
+#define PHANTOM_FORCE_EFFECT_START_EVENT_NAME "ForceEffect/Start"
+#define PHANTOM_FORCE_EFFECT_STOP_EVENT_NAME "ForceEffect/Stop"
+
+// VREvent* -- the remainder of the name specifies the name of the effect and parameter, e.g.:
+// ForceEffect/Param/AmbientFriction/Gain
+// The VREvent can then be cast to whatever type is appropriate for that parameter
+#define PHANTOM_FORCE_EFFECT_PARAM_EVENT_NAME_PREFIX "ForceEffect/Param/"
 
 
 class ForceMessages {
 public:
 
-    static std::string get_primary_btn_down_message_name() {
+    static std::string get_primary_btn_down_event_name() {
         return std::string(PHANTOM_PRIMARY_DOWN_EVENT_NAME);
     }
 
-    static std::string get_primary_btn_up_message_name() {
+    static std::string get_primary_btn_up_event_name() {
         return std::string(PHANTOM_PRIMARY_UP_EVENT_NAME);
     }
 
-    static std::string get_position_update_message_name() {
+    static std::string get_position_update_event_name() {
         return std::string(PHANTOM_POSITION_UPDATE_EVENT_NAME);
     }
 
-    static std::string get_rotation_update_message_name() {
+    static std::string get_rotation_update_event_name() {
         return std::string(PHANTOM_ROTATION_UPDATE_EVENT_NAME);
     }
 
-    static std::string get_active_message_name(const std::string &effect_name) {
-        return std::string(PHANTOM_FORCE_EFFECT_EVENT_BASE_NAME_PART "/") + effect_name + std::string("/" PHANTOM_FORCE_EFFECT_EVENT_ACTIVE_NAME_PART);
+    static std::string get_force_effect_start_event_name() {
+        return std::string(PHANTOM_FORCE_EFFECT_START_EVENT_NAME);
     }
     
-    static std::string get_param_message_name(const std::string &effect_name) {
-        return std::string(PHANTOM_FORCE_EFFECT_EVENT_BASE_NAME_PART "/") + effect_name + std::string("/" PHANTOM_FORCE_EFFECT_EVENT_ACTIVE_NAME_PART);
+    static std::string get_force_effect_stop_event_name() {
+        return std::string(PHANTOM_FORCE_EFFECT_STOP_EVENT_NAME);
+    }
+    
+    static std::string get_force_effect_param_event_name_prefix() {
+        return std::string(PHANTOM_FORCE_EFFECT_PARAM_EVENT_NAME_PREFIX);
+    }
+
+    static std::string get_force_effect_param_event_name(const std::string &effect_name, const std::string &param_name) {
+        return std::string(PHANTOM_FORCE_EFFECT_PARAM_EVENT_NAME_PREFIX) + effect_name + "/" + param_name;
     }
     
     // splits the name up into its parts using / as the delimeter

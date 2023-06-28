@@ -8,34 +8,41 @@
 
 
 void HLCALLBACK Button1DownCallback(HLenum event, HLuint object, HLenum thread, HLcache *cache, void *userdata) {
-    ((EventMgr*)userdata)->QueueEvent(new VREvent(ForceMessages::get_primary_btn_down_message_name()));
-    ((EventMgr*)userdata)->QueueForClient(new VREvent(ForceMessages::get_primary_btn_down_message_name()));
+    ((EventMgr*)userdata)->QueueEvent(new VREvent(ForceMessages::get_primary_btn_down_event_name()));
+    ((EventMgr*)userdata)->QueueForClient(new VREvent(ForceMessages::get_primary_btn_down_event_name()));
 }
 
 void HLCALLBACK Button1UpCallback(HLenum event, HLuint object, HLenum thread, HLcache *cache, void *userdata) {
-    ((EventMgr*)userdata)->QueueEvent(new VREvent(ForceMessages::get_primary_btn_up_message_name()));
-    ((EventMgr*)userdata)->QueueForClient(new VREvent(ForceMessages::get_primary_btn_up_message_name()));
+    ((EventMgr*)userdata)->QueueEvent(new VREvent(ForceMessages::get_primary_btn_up_event_name()));
+    ((EventMgr*)userdata)->QueueForClient(new VREvent(ForceMessages::get_primary_btn_up_event_name()));
 }
 
 void HLCALLBACK MotionCallback(HLenum event, HLuint object, HLenum thread, HLcache *cache, void *userdata) {
     double pos[3];
     hlGetDoublev(HL_PROXY_POSITION, pos);
-    ((EventMgr*)userdata)->QueueEvent(new VREventVector3(ForceMessages::get_position_update_message_name(), (float)pos[0], (float)pos[1], (float)pos[2]));
-    ((EventMgr*)userdata)->QueueForClient(new VREventVector3(ForceMessages::get_position_update_message_name(), (float)pos[0], (float)pos[1], (float)pos[2]));
+    ((EventMgr*)userdata)->QueueEvent(new VREventVector3(ForceMessages::get_position_update_event_name(), (float)pos[0], (float)pos[1], (float)pos[2]));
+    ((EventMgr*)userdata)->QueueForClient(new VREventVector3(ForceMessages::get_position_update_event_name(), (float)pos[0], (float)pos[1], (float)pos[2]));
 
     double rot[4];
     hlGetDoublev(HL_PROXY_ROTATION, rot);
-    ((EventMgr*)userdata)->QueueEvent(new VREventQuaternion(ForceMessages::get_rotation_update_message_name(), (float)rot[0], (float)rot[1], (float)rot[2], (float)rot[3]));
-    ((EventMgr*)userdata)->QueueForClient(new VREventQuaternion(ForceMessages::get_rotation_update_message_name(), (float)rot[0], (float)rot[1], (float)rot[2], (float)rot[3]));
+    ((EventMgr*)userdata)->QueueEvent(new VREventQuaternion(ForceMessages::get_rotation_update_event_name(), (float)rot[0], (float)rot[1], (float)rot[2], (float)rot[3]));
+    ((EventMgr*)userdata)->QueueForClient(new VREventQuaternion(ForceMessages::get_rotation_update_event_name(), (float)rot[0], (float)rot[1], (float)rot[2], (float)rot[3]));
 }
 
 
 
 Phantom::Phantom(EventMgr* event_mgr): event_mgr_(event_mgr) {
-    
+    event_mgr_->AddListener(ForceMessages::get_force_effect_start_event_name(), this, &Phantom::OnStartForceEffect);
+    event_mgr_->AddListener(ForceMessages::get_force_effect_stop_event_name(), this, &Phantom::OnStopForceEffect);
 }
 
 Phantom::~Phantom() {
+    // once force effects have been registered with the phantom class, the phantom class is "in charge" of them,
+    // so good practice to delete that memory when done.
+    for (const auto &entry : effects_) {
+        delete entry.second;
+    }
+    
     hlMakeCurrent(NULL);
     hlDeleteContext(hl_context_);
     hdDisableDevice(hd_device_);
@@ -151,18 +158,31 @@ void Phantom::RegisterForceEffect(const std::string &effect_name, ForceEffect *e
 
 void Phantom::OnStartForceEffect(VREvent* event) {
     VREventString* e_start = dynamic_cast<VREventString*>(event);
-    if (effects_.find(e_start->get_data()) == effects_.end()) {
-        std::cerr << "Phantom::OnStartForceEffect(): Error, unknown effect: " << e_start->get_data() << std::endl;
+    std::string effect_name = e_start->get_data();
+    if (effects_.find(effect_name) == effects_.end()) {
+        std::cerr << "Phantom::OnStartForceEffect(): Warning, ignoring unknown effect: " << effect_name << std::endl;
         return;
     }
-    effects_[e_start->get_data()]->Start();
+    // add the effect to the list of active effects
+    active_effects_[effect_name] = effects_[effect_name];
+    // start the effect
+    active_effects_[effect_name]->Start();
 }
 
 void Phantom::OnStopForceEffect(VREvent* event) {
     VREventString* e_stop = dynamic_cast<VREventString*>(event);
-    if (effects_.find(e_stop->get_data()) == effects_.end()) {
-        std::cerr << "Phantom::OnStopForceEffect(): Error, unknown effect: " << e_stop->get_data() << std::endl;
+    std::string effect_name = e_stop->get_data();
+    if (effects_.find(effect_name) == effects_.end()) {
+        std::cerr << "Phantom::OnStopForceEffect(): Warning, ignoring unknown effect: " << effect_name << std::endl;
         return;
     }
-    effects_[e_stop->get_data()]->Stop();
+    if (active_effects_.find(effect_name) == active_effects_.end()) {
+        std::cerr << "Phantom::OnStopForceEffect(): Warning, cannot stop an effect that is not currently running: " << effect_name << std::endl;
+        return;
+    }
+
+    // stop the effect
+    active_effects_[effect_name]->Stop();
+    // remove it from the list of active effects
+    active_effects_.erase(effect_name);
 }

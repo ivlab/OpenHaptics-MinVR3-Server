@@ -54,7 +54,7 @@ public:
     // Add a listener for a specific event by name.  To listen for an event that starts with "substring", use
     // "substring*" as the event_name.
     template <class T>
-    void AddListenerByName(const std::string &event_name, T* object_ptr, void (T::*object_method_ptr)(VREvent*)) {
+    void AddListener(const std::string &event_name, T* object_ptr, void (T::*object_method_ptr)(VREvent*)) {
         if (named_listeners_.find(event_name) != named_listeners_.end()) {
             std::vector<VREventCallback*> callbacks;
             named_listeners_.insert( { event_name, callbacks } );
