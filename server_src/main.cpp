@@ -28,13 +28,15 @@ SOCKET client_fd = INVALID_SOCKET;
 void mainloop() {
     // check for a new connection -- only one connection at a time is allowed.  new connections
     // replace the old and reset the system.
-
     if (MinVR3Net::IsReadyToRead(&listener_fd)) {
         SOCKET new_client_fd;
         if (MinVR3Net::TryAcceptConnection(listener_fd, &new_client_fd)) {
             if (client_fd == INVALID_SOCKET) {
+                // no existing client, initialize
                 phantom->Init();
-            } else {
+            }
+            else {
+                // replace the previous client, reset
                 MinVR3Net::CloseSocket(&client_fd);
                 phantom->Reset();
             }
@@ -42,19 +44,21 @@ void mainloop() {
         }
     }
     
-
     // collect VREvents from input devices and over the net
     phantom->PollForInput();
-    while (MinVR3Net::IsReadyToRead(&client_fd)) {
-        VREvent* e = MinVR3Net::ReceiveVREvent(&client_fd);
-        event_mgr->QueueEvent(e);
-        std::cout << "Received: " << *e << std::endl;
+    if (client_fd != INVALID_SOCKET) {
+        while (MinVR3Net::IsReadyToRead(&client_fd)) {
+            VREvent* e = MinVR3Net::ReceiveVREvent(&client_fd);
+            event_mgr->QueueEvent(e);
+            std::cout << "Received: " << *e << std::endl;
+        }
     }
     
-    // respond to VREvents
+    // respond to VREvents, with event_mgr calling any listeners who have subscribed to events
     event_mgr->ProcessQueue();
     
-    // send out any VREvents intended for the client
+    // input devices and listeners may have generated new events or status messages to send back
+    // the the client, send any of those now.
     event_mgr->ProcessClientQueue(&client_fd);
     
     // render the frame (haptics and graphics)

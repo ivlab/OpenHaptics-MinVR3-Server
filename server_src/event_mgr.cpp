@@ -48,8 +48,10 @@ void EventMgr::QueueForClient(VREvent *e) {
 }
 
 void EventMgr::ProcessClientQueue(SOCKET *client_fd) {
-    for (int i=0; i<client_queue_.size(); i++) {
-        MinVR3Net::SendVREvent(client_fd, *client_queue_[i]);
+    if (*client_fd != INVALID_SOCKET) {
+        for (int i=0; i<client_queue_.size(); i++) {
+            MinVR3Net::SendVREvent(client_fd, *client_queue_[i]);
+        }
     }
     clear_queue(&client_queue_);
 }
