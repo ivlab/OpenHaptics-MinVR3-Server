@@ -5,10 +5,10 @@
 
 
 AmbientViscous::AmbientViscous(EventMgr* event_mgr) : gain_(0.8), magnitude_cap_(1.0) {
-    std::string gain_event_name = ForceMessages::get_force_effect_param_event_name("AmbientViscous", "Gain");
+    std::string gain_event_name = ForceMessages::get_force_effect_param_event_name(Name(), "Gain");
     event_mgr->AddListener(gain_event_name, this, &AmbientViscous::OnGainChange);
 
-    std::string mag_event_name = ForceMessages::get_force_effect_param_event_name("AmbientViscous", "MagnitudeCap");
+    std::string mag_event_name = ForceMessages::get_force_effect_param_event_name(Name(), "MagnitudeCap");
     event_mgr->AddListener(mag_event_name, this, &AmbientViscous::OnMagnitudeCapChange);
 }
 

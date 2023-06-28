@@ -119,15 +119,22 @@ bool Phantom::Init(const std::string &device_name) {
     double scale = 1.0;
     hlScaled(1.0/scale, 1.0/scale, 1.0/scale);
 
+    
     // INITIALIZE FORCE SERVER EFFECTS
-    
-    
+    for (const auto &entry : effects_) {
+        ForceEffect* effect = entry.second;
+        effect->Init();
+    }
     
     return true;
 }
 
 void Phantom::Reset() {
-    
+    for (const auto &entry : active_effects_) {
+        ForceEffect* effect = entry.second;
+        effect->OnStopEffect();
+    }
+    active_effects_.clear();
 }
 
 void Phantom::PollForInput() {
@@ -136,19 +143,11 @@ void Phantom::PollForInput() {
 
 void Phantom::Draw() {
     hlBeginFrame();
-   
-    // RENDER THE HAPTIC SCENE
-    //hlBeginShape(HL_SHAPE_DEPTH_BUFFER, gMyShapeId);
-    //glBegin(GL_POLYGON);
-    //glVertex3f(0.25, 0.25, 0.0);
-    //glVertex3f(0.75, 0.25, 0.0);
-    //glVertex3f(0.75, 0.75, 0.0);
-    //glVertex3f(0.25, 0.75, 0.0);
-    //glEnd();
-    //hlEndShape();
-
-    
-    
+    for (const auto &entry : effects_) {
+        ForceEffect* effect = entry.second;
+        effect->DrawHaptics();
+        effect->DrawGraphics();
+    }
     hlEndFrame();
 }
 
@@ -166,7 +165,7 @@ void Phantom::OnStartForceEffect(VREvent* event) {
     // add the effect to the list of active effects
     active_effects_[effect_name] = effects_[effect_name];
     // start the effect
-    active_effects_[effect_name]->Start();
+    active_effects_[effect_name]->OnStartEffect();
 }
 
 void Phantom::OnStopForceEffect(VREvent* event) {
@@ -182,7 +181,7 @@ void Phantom::OnStopForceEffect(VREvent* event) {
     }
 
     // stop the effect
-    active_effects_[effect_name]->Stop();
+    active_effects_[effect_name]->OnStopEffect();
     // remove it from the list of active effects
     active_effects_.erase(effect_name);
 }

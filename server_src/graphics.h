@@ -4,14 +4,8 @@
 
 #include <string>
 
-// OpenGL includes
-#if defined(WIN32) || defined(linux)
-# include <GL/glut.h>
-#elif defined(__APPLE__)
-# include <GLUT/glut.h>
-#endif
-
 #include "event_mgr.h"
+#include "graphics_headers.h"
 
 class Phantom;
 
