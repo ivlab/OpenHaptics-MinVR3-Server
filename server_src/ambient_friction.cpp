@@ -4,7 +4,7 @@
 #include "force_messages.h"
 
 
-AmbientFriction::AmbientFriction(EventMgr* event_mgr) : gain_(0.15), magnitude_cap_(0.075) {
+AmbientFriction::AmbientFriction(EventMgr* event_mgr) : gain_(0.15), magnitude_cap_(0.75) {
     std::string gain_event_name = ForceMessages::get_force_effect_param_event_name(Name(), "Gain");
     event_mgr->AddListener(gain_event_name, this, &AmbientFriction::OnGainChange);
 

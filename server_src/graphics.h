@@ -18,13 +18,11 @@ public:
     bool Init(int argc, char** argv);
     void Run(void (*mainloop_func)(void));
     
-    void Draw();
+    void DrawGraphics();
     
 protected:
     EventMgr *event_mgr_;
     Phantom *phantom_;
-    
-    GLuint cursor_display_list_;
 };
 
 #endif

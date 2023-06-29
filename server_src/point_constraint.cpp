@@ -1,6 +1,7 @@
 
 #include "point_constraint.h"
 
+#include <iostream>
 #include "force_messages.h"
 
 
@@ -14,7 +15,10 @@ PointConstraint::PointConstraint(EventMgr* event_mgr) {
     dynamic_friction_ = 0.2f; // 0..1
     snap_dist_ = 10.0f;       // dist in mm
 
-    std::string event_name = ForceMessages::get_force_effect_param_event_name(Name(), "Stiffness");
+    std::string event_name = ForceMessages::get_force_effect_param_event_name(Name(), "Point");
+    event_mgr->AddListener(event_name, this, &PointConstraint::OnPointChange);
+
+    event_name = ForceMessages::get_force_effect_param_event_name(Name(), "Stiffness");
     event_mgr->AddListener(event_name, this, &PointConstraint::OnStiffnessChange);
     
     event_name = ForceMessages::get_force_effect_param_event_name(Name(), "Damping");
@@ -34,6 +38,16 @@ PointConstraint::PointConstraint(EventMgr* event_mgr) {
 }
 
 PointConstraint::~PointConstraint() {
+}
+
+void PointConstraint::OnPointChange(VREvent* e) {
+    VREventVector3* e_p = dynamic_cast<VREventVector3*>(e);
+    if (e_p != NULL) { // should always pass
+        // new value will be updated on the next DrawHaptics call
+        point_[0] = e_p->x();
+        point_[1] = e_p->y();
+        point_[2] = e_p->z();
+    }
 }
 
 void PointConstraint::OnStiffnessChange(VREvent* e) {
@@ -105,6 +119,7 @@ void PointConstraint::OnStopEffect() {
 }
 
 void PointConstraint::DrawHaptics() {
+    std::cout << "drawing point constraint" << std::endl;
     hlMaterialf(HL_FRONT, HL_STIFFNESS, stiffness_);
     hlMaterialf(HL_FRONT, HL_DAMPING, damping_);
     hlMaterialf(HL_FRONT, HL_STATIC_FRICTION, static_friction_);

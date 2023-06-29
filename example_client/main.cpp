@@ -34,13 +34,37 @@ int main(int argc, char** argv) {
     SOCKET server_fd;
     if (MinNet::ConnectTo(ip, port, &server_fd)) {
 
-        MinVR3Net::SendVREvent(&server_fd, VREventInt("ForceEffect/Friction/Active", 1));
-
+        float pos[3];
+        pos[0] = 0;
+        pos[1] = 0;
+        pos[2] = 0;
         bool done = false;
         while (!done) {
-            if (MinVR3Net::IsReadyToRead(&server_fd)) {
+            while (MinVR3Net::IsReadyToRead(&server_fd)) {
                 VREvent* e = MinVR3Net::ReceiveVREvent(&server_fd);
-                std::cout << *e << std::endl;
+                if (e->get_name() == "Phantom/Position") {
+                    VREventVector3* epos = dynamic_cast<VREventVector3*>(e);
+                    pos[0] = epos->x();
+                    pos[1] = epos->y();
+                    pos[2] = epos->z();
+                    std::cout << epos->x() << " " << epos->y() << " " << epos->z() << std::endl;
+                    /*
+                    if (epos->y() < 0) {
+                        MinVR3Net::SendVREvent(&server_fd, VREventString("ForceEffect/Start", "AmbientViscous"));
+                    }
+                    else {
+                        MinVR3Net::SendVREvent(&server_fd, VREventString("ForceEffect/Stop", "AmbientViscous"));
+                    }*/
+                }
+                else if (e->get_name() == "Phantom/Primary DOWN") {
+                    MinVR3Net::SendVREvent(&server_fd, VREventVector3("ForceEffect/Param/PointConstraint/Point", pos[0], pos[1], pos[2]));
+                    MinVR3Net::SendVREvent(&server_fd, VREventString("ForceEffect/Start", "PointConstraint"));
+                }
+                else if (e->get_name() == "Phantom/Primary UP") {
+                    MinVR3Net::SendVREvent(&server_fd, VREventString("ForceEffect/Stop", "PointConstraint"));
+                }
+
+                //std::cout << *e << std::endl;
                 if (e->get_name() == "Shutdown") {
                     done = true;
                 }

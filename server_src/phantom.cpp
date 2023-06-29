@@ -5,6 +5,7 @@
 
 #include "event_mgr.h"
 #include "force_messages.h"
+#include "graphics_headers.h"
 
 
 void HLCALLBACK Button1DownCallback(HLenum event, HLuint object, HLenum thread, HLcache *cache, void *userdata) {
@@ -21,6 +22,7 @@ void HLCALLBACK MotionCallback(HLenum event, HLuint object, HLenum thread, HLcac
     double pos[3];
     hlGetDoublev(HL_PROXY_POSITION, pos);
     ((EventMgr*)userdata)->QueueEvent(new VREventVector3(ForceMessages::get_position_update_event_name(), (float)pos[0], (float)pos[1], (float)pos[2]));
+    //std::cout << pos[0] << " " << pos[1] << " " << pos[2] << std::endl;
     ((EventMgr*)userdata)->QueueForClient(new VREventVector3(ForceMessages::get_position_update_event_name(), (float)pos[0], (float)pos[1], (float)pos[2]));
 
     double rot[4];
@@ -31,7 +33,7 @@ void HLCALLBACK MotionCallback(HLenum event, HLuint object, HLenum thread, HLcac
 
 
 
-Phantom::Phantom(EventMgr* event_mgr): event_mgr_(event_mgr) {
+Phantom::Phantom(EventMgr* event_mgr) : event_mgr_(event_mgr), initialized_(false) {
     event_mgr_->AddListener(ForceMessages::get_force_effect_start_event_name(), this, &Phantom::OnStartForceEffect);
     event_mgr_->AddListener(ForceMessages::get_force_effect_stop_event_name(), this, &Phantom::OnStopForceEffect);
 }
@@ -126,6 +128,7 @@ bool Phantom::Init(const std::string &device_name) {
         effect->Init();
     }
     
+    initialized_ = true;
     return true;
 }
 
@@ -141,18 +144,85 @@ void Phantom::PollForInput() {
     hlCheckEvents();
 }
 
-void Phantom::Draw() {
+void Phantom::DrawHaptics() {
     hlBeginFrame();
-    for (const auto &entry : effects_) {
+    for (const auto& entry : active_effects_) {
         ForceEffect* effect = entry.second;
         effect->DrawHaptics();
-        effect->DrawGraphics();
     }
     hlEndFrame();
 }
 
+void Phantom::DrawGraphics() {
+
+    GLUquadricObj* qobj = gluNewQuadric();
+
+    // DRAW HAPTIC CURSOR
+    static const double kCursorRadius = 5;
+    static const double kCursorHeight = 160;
+    static const int kCursorTess = 15;
+    static const double kCursorScale = 1.0;
+    GLfloat mat_ambient_gray[] = { 0.5, 0.5, 0.5, 1.0 };
+    GLfloat mat_ambient_red[] = { 1.0, 0.0, 0.0, 1.0 };
+    GLfloat mat_specular[] = { 1.0, 1.0, 1.0, 1.0 };
+    GLfloat mat_shininess[] = { 50.0 };
+    glMaterialfv(GL_FRONT, GL_SPECULAR, mat_specular);
+    glMaterialfv(GL_FRONT, GL_SHININESS, mat_shininess);
+    glMaterialfv(GL_FRONT, GL_AMBIENT, mat_ambient_gray);
+
+    glMatrixMode(GL_MODELVIEW);
+    glPushMatrix();
+    glMultMatrixd(transform());
+
+
+    if (is_primary_btn_down()) {
+        glMaterialfv(GL_FRONT, GL_AMBIENT, mat_ambient_red);
+    }
+    else {
+        glMaterialfv(GL_FRONT, GL_AMBIENT, mat_ambient_gray);
+    }
+    glTranslated(0.0, 0.0, kCursorHeight / 5.0);
+    gluCylinder(qobj, 0.0, kCursorRadius, kCursorHeight / 5.0, kCursorTess, kCursorTess);
+
+    glMaterialfv(GL_FRONT, GL_AMBIENT, mat_ambient_gray);
+    glTranslated(0.0, 0.0, kCursorHeight / 5.0);
+    gluCylinder(qobj, kCursorRadius, kCursorRadius, kCursorHeight * 4.0 / 5.0, kCursorTess, kCursorTess);
+
+    glTranslated(0.0, 0.0, kCursorHeight * 4.0 / 5.0);
+    gluDisk(qobj, 0.0, kCursorRadius, kCursorTess, 1);
+
+    glPopMatrix();
+
+
+    // shadow of the cursor
+    glDisable(GL_LIGHTING);
+    glPushMatrix();
+    glTranslatef(0.0f, -299.5f, 0.0f);
+    glScalef(1.0f, 0.0f, 1.0f);
+    glMultMatrixd(transform());
+    glColor3f(0.0f, 0.0f, 0.0f);
+    glTranslated(0.0, 0.0, kCursorHeight / 5.0);
+    gluCylinder(qobj, 0.0, kCursorRadius, kCursorHeight / 5.0, kCursorTess, kCursorTess);
+    glTranslated(0.0, 0.0, kCursorHeight / 5.0);
+    gluCylinder(qobj, kCursorRadius, kCursorRadius, kCursorHeight * 4.0 / 5.0, kCursorTess, kCursorTess);
+    gluDisk(qobj, 0.0, kCursorRadius, kCursorTess, 1);
+    glPopMatrix();
+    glEnable(GL_LIGHTING);
+
+    gluDeleteQuadric(qobj);
+
+    for (const auto& entry : active_effects_) {
+        ForceEffect* effect = entry.second;
+        effect->DrawGraphics();
+    }
+}
+
+
 void Phantom::RegisterForceEffect(const std::string &effect_name, ForceEffect *effect) {
     effects_[effect_name] = effect;
+    if (initialized_) {
+        effect->Init();
+    }
 }
 
 void Phantom::OnStartForceEffect(VREvent* event) {
@@ -162,6 +232,7 @@ void Phantom::OnStartForceEffect(VREvent* event) {
         std::cerr << "Phantom::OnStartForceEffect(): Warning, ignoring unknown effect: " << effect_name << std::endl;
         return;
     }
+    std::cout << "STARTING: " << effect_name << std::endl;
     // add the effect to the list of active effects
     active_effects_[effect_name] = effects_[effect_name];
     // start the effect
@@ -179,6 +250,7 @@ void Phantom::OnStopForceEffect(VREvent* event) {
         std::cerr << "Phantom::OnStopForceEffect(): Warning, cannot stop an effect that is not currently running: " << effect_name << std::endl;
         return;
     }
+    std::cout << "STOPPING: " << effect_name << std::endl;
 
     // stop the effect
     active_effects_[effect_name]->OnStopEffect();

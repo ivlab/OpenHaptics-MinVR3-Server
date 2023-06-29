@@ -3,11 +3,12 @@
 #ifndef FORCE_SERVER_AMBIENT_FRICTION_H
 #define FORCE_SERVER_AMBIENT_FRICTION_H
 
+#include <minvr3.h>
+
 // OpenHaptics includes
 #include <HD/hd.h>
 #include <HL/hl.h>
 
-#include <minvr3.h>
 
 #include "event_mgr.h"
 #include "force_effect.h"

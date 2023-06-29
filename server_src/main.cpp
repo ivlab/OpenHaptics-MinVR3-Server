@@ -35,6 +35,8 @@ SOCKET client_fd = INVALID_SOCKET;
 // force effects -- designed so that more can be easily added here
 void register_force_effects() {
     phantom->RegisterForceEffect("AmbientFriction", new AmbientFriction(event_mgr));
+    phantom->RegisterForceEffect("AmbientViscous", new AmbientViscous(event_mgr));
+    phantom->RegisterForceEffect("PointConstraint", new PointConstraint(event_mgr));
 }
 
 
@@ -44,16 +46,9 @@ void mainloop() {
     if (MinVR3Net::IsReadyToRead(&listener_fd)) {
         SOCKET new_client_fd;
         if (MinVR3Net::TryAcceptConnection(listener_fd, &new_client_fd)) {
-            if (client_fd == INVALID_SOCKET) {
-                // no existing client, initialize
-                phantom->Init();
-            }
-            else {
-                // replace the previous client, reset
-                MinVR3Net::CloseSocket(&client_fd);
-                phantom->Reset();
-            }
+            phantom->Reset();
             client_fd = new_client_fd;
+            std::cout << "New Connection" << std::endl; 
         }
     }
     
@@ -62,8 +57,10 @@ void mainloop() {
     if (client_fd != INVALID_SOCKET) {
         while (MinVR3Net::IsReadyToRead(&client_fd)) {
             VREvent* e = MinVR3Net::ReceiveVREvent(&client_fd);
-            event_mgr->QueueEvent(e);
-            std::cout << "Received: " << *e << std::endl;
+            if (e != NULL) {
+                event_mgr->QueueEvent(e);
+                std::cout << "Received: " << *e << std::endl;
+            }
         }
     }
     
@@ -75,8 +72,12 @@ void mainloop() {
     event_mgr->ProcessClientQueue(&client_fd);
     
     // render the frame (haptics and graphics)
-    phantom->Draw();
-    graphics->Draw();
+    graphics->DrawGraphics();
+
+    phantom->DrawHaptics();
+
+    glutPostRedisplay();
+    glutSwapBuffers();
 }
 
 
@@ -101,7 +102,7 @@ int main(int argc, char** argv) {
     graphics->Init(argc, argv);
     phantom->Init();
     register_force_effects();
-    
+
     MinVR3Net::Init();
     MinVR3Net::CreateListener(port, &listener_fd);
     

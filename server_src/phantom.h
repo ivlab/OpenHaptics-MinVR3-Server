@@ -23,7 +23,8 @@ public:
     void Reset();
     
     void PollForInput();
-    void Draw();
+    void DrawHaptics();
+    void DrawGraphics();
 
     bool is_primary_btn_down();
     double* transform();
@@ -39,6 +40,7 @@ protected:
     EventMgr* event_mgr_;
     HHD hd_device_;
     HHLRC hl_context_;
+    bool initialized_;
 
     HDdouble transform_[16];
     HDdouble position_[3];

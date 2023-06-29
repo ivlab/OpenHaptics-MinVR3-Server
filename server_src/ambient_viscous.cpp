@@ -2,7 +2,7 @@
 #include "ambient_viscous.h"
 
 #include "force_messages.h"
-
+#include <iostream>
 
 AmbientViscous::AmbientViscous(EventMgr* event_mgr) : gain_(0.8), magnitude_cap_(1.0) {
     std::string gain_event_name = ForceMessages::get_force_effect_param_event_name(Name(), "Gain");
@@ -34,20 +34,26 @@ void AmbientViscous::OnMagnitudeCapChange(VREvent* e) {
 
 
 void AmbientViscous::Init() {
+    std::cout << "INIT" << std::endl;
     effect_id_ = hlGenEffects(1);
 }
 
 void AmbientViscous::OnStartEffect() {
+    std::cout << "START" << std::endl;
+
     hlEffectd(HL_EFFECT_PROPERTY_GAIN, gain_);
     hlEffectd(HL_EFFECT_PROPERTY_MAGNITUDE, magnitude_cap_);
-    hlStartEffect(HL_EFFECT_FRICTION, effect_id_);
+    hlStartEffect(HL_EFFECT_VISCOUS, effect_id_);
 }
 
 void AmbientViscous::OnStopEffect() {
+    std::cout << "STOP" << std::endl;
+
     hlStopEffect(effect_id_);
 }
 
 void AmbientViscous::DrawHaptics() {
+    std::cout << "DRAW" << std::endl;
     hlEffectd(HL_EFFECT_PROPERTY_GAIN, gain_);
     hlEffectd(HL_EFFECT_PROPERTY_MAGNITUDE, magnitude_cap_);
     hlUpdateEffect(effect_id_);

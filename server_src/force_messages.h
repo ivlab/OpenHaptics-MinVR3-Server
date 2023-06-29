@@ -6,11 +6,11 @@
 
 // VREvent -- no additional data
 #define PHANTOM_PRIMARY_DOWN_EVENT_NAME "Phantom/Primary DOWN"
-#define PHANTOM_PRIMARY_UP_EVENT_NAME "Phantom/Primary DOWN"
+#define PHANTOM_PRIMARY_UP_EVENT_NAME "Phantom/Primary UP"
 // VREventVector3
 #define PHANTOM_POSITION_UPDATE_EVENT_NAME "Phantom/Position"
 // VREventQuaternion
-#define PHANTOM_ROTATION_UPDATE_EVENT_NAME "Phantom/Position"
+#define PHANTOM_ROTATION_UPDATE_EVENT_NAME "Phantom/Rotation"
 
 // VREventString -- string specifies the name of the effect to start/stop
 #define PHANTOM_FORCE_EFFECT_START_EVENT_NAME "ForceEffect/Start"
