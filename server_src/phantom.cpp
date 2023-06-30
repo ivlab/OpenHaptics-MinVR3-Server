@@ -101,7 +101,27 @@ bool Phantom::Init(const std::string &device_name) {
     hlEventd(HL_EVENT_MOTION_ANGULAR_TOLERANCE, 0.02); // default 0.02 radians
 
     
+
     // SETUP HAPTIC WORKSPACE
+
+    HLdouble workspaceDims[6];
+    HLdouble maxWorkspaceDims[6];
+    hlGetDoublev(HL_WORKSPACE, maxWorkspaceDims);
+    hlGetDoublev(HL_MAX_WORKSPACE_DIMS, workspaceDims);
+    // both are -265 -94 -95 265 521.5 129
+
+
+    for (int i = 0; i < 6; i++) {
+        std::cout << workspaceDims[i] << " ";
+    }
+    std::cout << std::endl;
+
+    for (int i = 0; i < 6; i++) {
+        std::cout << maxWorkspaceDims[i] << " ";
+    }
+    std::cout << std::endl;
+
+
     hlDisable(HL_USE_GL_MODELVIEW);
     
     // For the Phantom Premium A 1.0, units in mm
@@ -120,7 +140,6 @@ bool Phantom::Init(const std::string &device_name) {
     // Apply a uniform scale to the working volume
     double scale = 1.0;
     hlScaled(1.0/scale, 1.0/scale, 1.0/scale);
-
     
     // INITIALIZE FORCE SERVER EFFECTS
     for (const auto &entry : effects_) {
@@ -128,8 +147,22 @@ bool Phantom::Init(const std::string &device_name) {
         effect->Init();
     }
     
-    initialized_ = true;
-    return true;
+    initialized_ = CheckHapticError();
+    return initialized_;
+}
+
+void Phantom::RegisterForceEffect(const std::string& effect_name, ForceEffect* effect) {
+    effects_[effect_name] = effect;
+    if (initialized_) {
+        hlBeginFrame();
+        effect->Init();
+        hlEndFrame();
+    }
+}
+
+void Phantom::BeginHapticFrame() {
+    hlBeginFrame();
+    CheckHapticError();
 }
 
 void Phantom::Reset() {
@@ -138,20 +171,106 @@ void Phantom::Reset() {
         effect->OnStopEffect();
     }
     active_effects_.clear();
+    CheckHapticError();
 }
 
 void Phantom::PollForInput() {
     hlCheckEvents();
+    CheckHapticError();
 }
 
 void Phantom::DrawHaptics() {
-    hlBeginFrame();
+    // we are drawing graphics and haptics separately, so start by clearing the depth buffer so none of 
+    // the haptic rendering calls reuse the graphics depth info
+
+    glClear(GL_DEPTH_BUFFER_BIT);
+
     for (const auto& entry : active_effects_) {
         ForceEffect* effect = entry.second;
         effect->DrawHaptics();
+        CheckHapticError();
     }
-    hlEndFrame();
 }
+
+
+void Phantom::OnStartForceEffect(VREvent* event) {
+    VREventString* e_start = dynamic_cast<VREventString*>(event);
+    std::string effect_name = e_start->get_data();
+    if (effects_.find(effect_name) == effects_.end()) {
+        std::cerr << "Phantom::OnStartForceEffect(): Warning, ignoring unknown effect: " << effect_name << std::endl;
+        return;
+    }
+    std::cout << "STARTING: " << effect_name << std::endl;
+    // add the effect to the list of active effects
+    active_effects_[effect_name] = effects_[effect_name];
+    // start the effect
+    active_effects_[effect_name]->OnStartEffect();
+    CheckHapticError();
+}
+
+void Phantom::OnStopForceEffect(VREvent* event) {
+    VREventString* e_stop = dynamic_cast<VREventString*>(event);
+    std::string effect_name = e_stop->get_data();
+    if (effects_.find(effect_name) == effects_.end()) {
+        std::cerr << "Phantom::OnStopForceEffect(): Warning, ignoring unknown effect: " << effect_name << std::endl;
+        return;
+    }
+    if (active_effects_.find(effect_name) == active_effects_.end()) {
+        std::cerr << "Phantom::OnStopForceEffect(): Warning, cannot stop an effect that is not currently running: " << effect_name << std::endl;
+        return;
+    }
+    std::cout << "STOPPING: " << effect_name << std::endl;
+
+    // stop the effect
+    active_effects_[effect_name]->OnStopEffect();
+    // remove it from the list of active effects
+    active_effects_.erase(effect_name);
+    CheckHapticError();
+}
+
+
+void Phantom::EndHapticFrame() {
+    hlEndFrame();
+    CheckHapticError();
+}
+
+
+bool Phantom::CheckHapticError() {
+    HLerror error = hlGetError();
+    if (error.errorCode == HL_NO_ERROR) {
+        return false;
+    }
+    else if (error.errorCode == HL_DEVICE_ERROR) {
+        std::cerr << "Phantom::CheckErrors() Device error: " << hdGetErrorString(error.errorInfo.errorCode) << std::endl;
+    }
+    else if (error.errorCode == HL_INVALID_ENUM) {
+        std::cerr << "Phantom::CheckErrors() HL_INVALID_ENUM - An invalid value for an enumerated type was passed to an API function." << std::endl;
+    }
+    else if (error.errorCode == HL_INVALID_OPERATION) {
+        std::cerr << "Phantom::CheckErrors() HL_INVALID_OPERATION An API function was called when the renderer was not in an appropriate "
+            "state for that function call.For example, hlBeginShape() was called outside an hlBeginFrame() / hlEndFrame() pair, or "
+            "hlBeginFrame() when no haptic rendering context was active." << std::endl;
+    }
+    else if (error.errorCode == HL_INVALID_VALUE) {
+        std::cerr << "Phantom::CheckErrors() HL_INVALID_VALUE - A value passed to an API function is outside the valid range for that function." << std::endl;
+    }
+    else if (error.errorCode == HL_OUT_OF_MEMORY) {
+        std::cerr << "Phantom::CheckErrors() HL_OUT_OF_MEMORY - There is not enough memory to complete the last API function called. This function " 
+            "may have partially completed leaving the haptic renderer in an undefined state." << std::endl;
+    }
+    else if (error.errorCode == HL_STACK_OVERFLOW) {
+        std::cerr << "Phantom::CheckErrors() HL_STACK_OVERFLOW - An API function was called that would have caused an overflow of the matrix stack." << std::endl;
+    }
+    else if (error.errorCode == HL_STACK_UNDERFLOW) {
+        std::cerr << "Phantom::CheckErrors() HL_STACK_UNDERFLOW - An API function was called that would have caused an underflow of the matrix stack, " 
+            "i.e.a call to hlPopMatrix() when the stack is empty." << std::endl;
+    }
+    else {
+        std::cerr << "Phantom::CheckErrors() Unknown error." << std::endl;
+    }
+    return true;
+}
+
 
 void Phantom::DrawGraphics() {
 
@@ -215,45 +334,4 @@ void Phantom::DrawGraphics() {
         ForceEffect* effect = entry.second;
         effect->DrawGraphics();
     }
-}
-
-
-void Phantom::RegisterForceEffect(const std::string &effect_name, ForceEffect *effect) {
-    effects_[effect_name] = effect;
-    if (initialized_) {
-        effect->Init();
-    }
-}
-
-void Phantom::OnStartForceEffect(VREvent* event) {
-    VREventString* e_start = dynamic_cast<VREventString*>(event);
-    std::string effect_name = e_start->get_data();
-    if (effects_.find(effect_name) == effects_.end()) {
-        std::cerr << "Phantom::OnStartForceEffect(): Warning, ignoring unknown effect: " << effect_name << std::endl;
-        return;
-    }
-    std::cout << "STARTING: " << effect_name << std::endl;
-    // add the effect to the list of active effects
-    active_effects_[effect_name] = effects_[effect_name];
-    // start the effect
-    active_effects_[effect_name]->OnStartEffect();
-}
-
-void Phantom::OnStopForceEffect(VREvent* event) {
-    VREventString* e_stop = dynamic_cast<VREventString*>(event);
-    std::string effect_name = e_stop->get_data();
-    if (effects_.find(effect_name) == effects_.end()) {
-        std::cerr << "Phantom::OnStopForceEffect(): Warning, ignoring unknown effect: " << effect_name << std::endl;
-        return;
-    }
-    if (active_effects_.find(effect_name) == active_effects_.end()) {
-        std::cerr << "Phantom::OnStopForceEffect(): Warning, cannot stop an effect that is not currently running: " << effect_name << std::endl;
-        return;
-    }
-    std::cout << "STOPPING: " << effect_name << std::endl;
-
-    // stop the effect
-    active_effects_[effect_name]->OnStopEffect();
-    // remove it from the list of active effects
-    active_effects_.erase(effect_name);
 }

@@ -126,6 +126,7 @@ void PointConstraint::DrawHaptics() {
     hlMaterialf(HL_FRONT, HL_DYNAMIC_FRICTION, dynamic_friction_);
     hlTouchModelf(HL_SNAP_DISTANCE, snap_dist_);
 
+    
     hlBeginShape(HL_SHAPE_FEEDBACK_BUFFER, shape_id_);
     hlTouchModel(HL_CONSTRAINT);
     glBegin(GL_POINTS);

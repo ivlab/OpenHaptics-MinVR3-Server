@@ -18,7 +18,9 @@ public:
     bool Init(int argc, char** argv);
     void Run(void (*mainloop_func)(void));
     
+    void Clear(bool clear_color=true, bool clear_depth=true);
     void DrawGraphics();
+    void SwapBuffers();
     
 protected:
     EventMgr *event_mgr_;

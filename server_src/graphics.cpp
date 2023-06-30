@@ -47,19 +47,29 @@ bool Graphics::Init(int argc, char** argv) {
     return true;
 }
 
-void glutIdle() {
-    glutPostRedisplay();
-}
+//void glutIdle() {
+//    glutPostRedisplay();
+//}
 
 void Graphics::Run(void (*mainloop_func)(void)) {
-    glutIdleFunc(glutIdle);
+    //glutIdleFunc(glutIdle);
     glutDisplayFunc(mainloop_func);
     glutMainLoop(); // note: doesn't return until the program closes
 }
 
-void Graphics::DrawGraphics() {
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+void Graphics::Clear(bool clear_color, bool clear_depth) {
+    if (clear_color && clear_depth) {
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    }
+    else if (clear_depth) {
+        glClear(GL_DEPTH_BUFFER_BIT);
+    }
+    else if (clear_color) {
+        glClear(GL_COLOR_BUFFER_BIT);
+    }
+}
 
+void Graphics::DrawGraphics() {
     glMatrixMode(GL_MODELVIEW);
     glLoadIdentity();
     gluLookAt(0, 0, 850, 0, 0, 0, 0, 1, 0);
@@ -95,4 +105,8 @@ void Graphics::DrawGraphics() {
     if (phantom_ != NULL) {
         phantom_->DrawGraphics();
     }
+}
+
+void Graphics::SwapBuffers() {
+    glutSwapBuffers();
 }
