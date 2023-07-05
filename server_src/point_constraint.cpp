@@ -108,18 +108,17 @@ void PointConstraint::OnSnapForceChange(VREvent* e) {
 }
 
 
-void PointConstraint::Init() {
-    shape_id_ = hlGenShapes(1);
-}
-
 void PointConstraint::OnStartEffect() {
+    if (!initialized_) {
+        shape_id_ = hlGenShapes(1);
+        initialized_ = true;
+    }
 }
 
 void PointConstraint::OnStopEffect() {
 }
 
 void PointConstraint::DrawHaptics() {
-    std::cout << "drawing point constraint" << std::endl;
     hlMaterialf(HL_FRONT, HL_STIFFNESS, stiffness_);
     hlMaterialf(HL_FRONT, HL_DAMPING, damping_);
     hlMaterialf(HL_FRONT, HL_STATIC_FRICTION, static_friction_);

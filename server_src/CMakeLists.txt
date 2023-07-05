@@ -24,8 +24,8 @@ set (HEADERFILES
   server_src/force_effect.h
   server_src/force_messages.h
   server_src/graphics.h
-  server_src/graphics_headers.h
   server_src/line_constraint.h
+  server_src/open_haptics.h
   server_src/point_constraint.h
   server_src/surface_constraint.h
   server_src/touch_surface.h

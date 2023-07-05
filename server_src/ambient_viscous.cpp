@@ -33,13 +33,11 @@ void AmbientViscous::OnMagnitudeCapChange(VREvent* e) {
 }
 
 
-void AmbientViscous::Init() {
-    std::cout << "INIT" << std::endl;
-    effect_id_ = hlGenEffects(1);
-}
-
 void AmbientViscous::OnStartEffect() {
-    std::cout << "START" << std::endl;
+    if (!initialized_) {
+        effect_id_ = hlGenEffects(1);
+        initialized_ = true;
+    }
 
     hlEffectd(HL_EFFECT_PROPERTY_GAIN, gain_);
     hlEffectd(HL_EFFECT_PROPERTY_MAGNITUDE, magnitude_cap_);
@@ -47,13 +45,10 @@ void AmbientViscous::OnStartEffect() {
 }
 
 void AmbientViscous::OnStopEffect() {
-    std::cout << "STOP" << std::endl;
-
     hlStopEffect(effect_id_);
 }
 
 void AmbientViscous::DrawHaptics() {
-    std::cout << "DRAW" << std::endl;
     hlEffectd(HL_EFFECT_PROPERTY_GAIN, gain_);
     hlEffectd(HL_EFFECT_PROPERTY_MAGNITUDE, magnitude_cap_);
     hlUpdateEffect(effect_id_);

@@ -15,7 +15,6 @@
 class ForceEffect {
 public:
     virtual const std::string Name() const = 0;
-    virtual void Init() = 0;
     virtual void OnStartEffect() = 0;
     virtual void OnStopEffect() = 0;
     virtual void DrawHaptics() = 0;

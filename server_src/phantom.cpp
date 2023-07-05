@@ -33,7 +33,7 @@ void HLCALLBACK MotionCallback(HLenum event, HLuint object, HLenum thread, HLcac
 
 
 
-Phantom::Phantom(EventMgr* event_mgr) : event_mgr_(event_mgr), initialized_(false) {
+Phantom::Phantom(EventMgr* event_mgr) : hd_device_(HD_INVALID_HANDLE), hl_context_(0), event_mgr_(event_mgr), initialized_(false) {
     event_mgr_->AddListener(ForceMessages::get_force_effect_start_event_name(), this, &Phantom::OnStartForceEffect);
     event_mgr_->AddListener(ForceMessages::get_force_effect_stop_event_name(), this, &Phantom::OnStopForceEffect);
 }
@@ -75,23 +75,23 @@ double* Phantom::rotation() {
 
 
 bool Phantom::Init(const std::string &device_name) {
-    // DEVICE-LEVEL INITIALIZATION
     HDErrorInfo error;
+
     hd_device_ = hdInitDevice(HD_DEFAULT_DEVICE);
     if (HD_DEVICE_ERROR(error = hdGetError())) {
-        std::cerr << "Failed to initialize " << device_name << ". HD error code: " << error.errorCode << std::endl;
-        return false;
-    }
-    if (HD_SUCCESS != hdGetError().errorCode)
-    {
-        std::cerr << "Failed to initialize " << device_name << ". HD error code: " << error.errorCode << std::endl;
-        return false;
+        hduPrintError(stderr, &error, "Failed to initialize haptic device");
+        fprintf(stderr, "Press any key to exit");
+        getchar();
+        exit(-1);
     }
 
-    // Create a haptic rendering context and activate it.
     hl_context_ = hlCreateContext(hd_device_);
     hlMakeCurrent(hl_context_);
-    
+
+    // Enable optimization of the viewing parameters when rendering
+    // geometry for OpenHaptics.
+    hlEnable(HL_HAPTIC_CAMERA_VIEW);
+
     // setup callbacks for input from the phantom
     hlAddEventCallback(HL_EVENT_1BUTTONDOWN, HL_OBJECT_ANY, HL_CLIENT_THREAD, &Button1DownCallback, event_mgr_);
     hlAddEventCallback(HL_EVENT_1BUTTONUP, HL_OBJECT_ANY, HL_CLIENT_THREAD, &Button1UpCallback, event_mgr_);
@@ -101,51 +101,36 @@ bool Phantom::Init(const std::string &device_name) {
     hlEventd(HL_EVENT_MOTION_ANGULAR_TOLERANCE, 0.02); // default 0.02 radians
 
     
-
-    // SETUP HAPTIC WORKSPACE
-
-    HLdouble workspaceDims[6];
-    HLdouble maxWorkspaceDims[6];
-    hlGetDoublev(HL_WORKSPACE, maxWorkspaceDims);
-    hlGetDoublev(HL_MAX_WORKSPACE_DIMS, workspaceDims);
-    // both are -265 -94 -95 265 521.5 129
+    /*
+    // Generate id for the shape.
+    gSphereShapeId = hlGenShapes(1);
 
 
-    for (int i = 0; i < 6; i++) {
-        std::cout << workspaceDims[i] << " ";
-    }
-    std::cout << std::endl;
+    // AMBIENT EFFECT EXAMPLE
 
-    for (int i = 0; i < 6; i++) {
-        std::cout << maxWorkspaceDims[i] << " ";
-    }
-    std::cout << std::endl;
+    gFrictionId = hlGenEffects(1);
+    hlBeginFrame();
+    hlEffectd(HL_EFFECT_PROPERTY_GAIN, 0.05);
+    hlEffectd(HL_EFFECT_PROPERTY_MAGNITUDE, 0.1);
+    hlStartEffect(HL_EFFECT_FRICTION, gFrictionId);
+    hlEndFrame();
 
+    gLineShapeId = hlGenShapes(1);
 
-    hlDisable(HL_USE_GL_MODELVIEW);
+    HDdouble kStiffness;
+    hdGetDoublev(HD_NOMINAL_MAX_STIFFNESS, &kStiffness);
+
+    // We can get a good approximation of the snap distance to use by
+    // solving the following simple force formula:
+    // >  F = k * x  <
+    // F: Force in Newtons (N).
+    // k: Stiffness control coefficient (N/mm).
+    // x: Displacement (i.e. snap distance).
+    const double kLineShapeForce = 7.0;
+    gLineShapeSnapDistance = kLineShapeForce / kStiffness;
+    */
     
-    // For the Phantom Premium A 1.0, units in mm
-    // Max reported extents       = -260, -106, -61, 260, 400, 119
-    // Reasonable working volume  = -130,  -70, -40, 130, 190,  90
-   
-    // Map this working volume to the world coordinates specified
-    hlMatrixMode(HL_TOUCHWORKSPACE);
-    hlLoadIdentity();
-
-    // Make the origin the center of the reasonable working volume
-    //hlTranslated(0.0, 60.0, 25.0);
-    // Convert feet to mm
-    //hlScaled(304.8, 304.8, 304.8);
-
-    // Apply a uniform scale to the working volume
-    double scale = 1.0;
-    hlScaled(1.0/scale, 1.0/scale, 1.0/scale);
-    
-    // INITIALIZE FORCE SERVER EFFECTS
-    for (const auto &entry : effects_) {
-        ForceEffect* effect = entry.second;
-        effect->Init();
-    }
+    hlTouchableFace(HL_FRONT);
     
     initialized_ = CheckHapticError();
     return initialized_;
@@ -153,16 +138,55 @@ bool Phantom::Init(const std::string &device_name) {
 
 void Phantom::RegisterForceEffect(const std::string& effect_name, ForceEffect* effect) {
     effects_[effect_name] = effect;
-    if (initialized_) {
-        hlBeginFrame();
-        effect->Init();
-        hlEndFrame();
-    }
 }
+
+void Phantom::UpdateHapticWorkspace() {
+    GLdouble modelview[16];
+    glGetDoublev(GL_MODELVIEW_MATRIX, modelview);
+
+    GLdouble projection[16];
+    glGetDoublev(GL_PROJECTION_MATRIX, projection);
+
+    GLint viewport[4];
+    glGetIntegerv(GL_VIEWPORT, viewport);
+
+    HLdouble maxWorkspaceDims[6];
+    hlGetDoublev(HL_MAX_WORKSPACE_DIMS, maxWorkspaceDims);
+
+    HLdouble size[3];
+    size[0] = maxWorkspaceDims[3] - maxWorkspaceDims[0];
+    size[1] = maxWorkspaceDims[4] - maxWorkspaceDims[1];
+    size[2] = maxWorkspaceDims[5] - maxWorkspaceDims[2];
+
+    HLdouble center[3];
+    center[0] = maxWorkspaceDims[0] + size[0] / 2.0;
+    center[1] = maxWorkspaceDims[1] + size[1] / 2.0;
+    center[2] = maxWorkspaceDims[2] + size[2] / 2.0;
+
+    hlMatrixMode(HL_TOUCHWORKSPACE);
+    hlLoadIdentity();
+
+    // Not sure why the origin of the Phantom's workspace is not at the center of the workspace box.
+    // This translation has the effect of placing the origin (0,0,0) at the center of the workable space
+    // of the phantom.  So haptic shapes rendered at (0,0,0) are actually in the middle of the workspace.
+    hlTranslated(-center[0], -center[1], -center[2]);
+
+    // This does some magic to map the haptic workspace to the graphics view volume.  It seems to work
+    // well aside from the need to add the translation above.
+    hluFitWorkspace(projection);
+
+    // Compute cursor scale to get a consistently sized cursor relative to screen space.
+    gCursorScale = hluScreenToModelScale(modelview, projection, viewport);
+    gCursorScale *= CURSOR_SIZE_PIXELS;
+}
+
 
 void Phantom::BeginHapticFrame() {
     hlBeginFrame();
-    CheckHapticError();
+}
+
+void Phantom::PollForInput() {
+    hlCheckEvents();
 }
 
 void Phantom::Reset() {
@@ -174,17 +198,38 @@ void Phantom::Reset() {
     CheckHapticError();
 }
 
-void Phantom::PollForInput() {
-    hlCheckEvents();
-    CheckHapticError();
-}
-
 void Phantom::DrawHaptics() {
-    // we are drawing graphics and haptics separately, so start by clearing the depth buffer so none of 
-    // the haptic rendering calls reuse the graphics depth info
+    
+    // CONTACT EXAMPLE
 
-    glClear(GL_DEPTH_BUFFER_BIT);
+    // Start a new haptic shape.  Use the feedback buffer to capture OpenGL
+    // geometry for haptic rendering.
+    hlBeginShape(HL_SHAPE_FEEDBACK_BUFFER, gSphereShapeId);
+    hlTouchModel(HL_CONTACT);
+    // Set material properties for the shapes to be drawn.
+    hlMaterialf(HL_FRONT_AND_BACK, HL_STIFFNESS, 0.7f);
+    hlMaterialf(HL_FRONT_AND_BACK, HL_DAMPING, 0.1f);
+    hlMaterialf(HL_FRONT_AND_BACK, HL_STATIC_FRICTION, 0.2f);
+    hlMaterialf(HL_FRONT_AND_BACK, HL_DYNAMIC_FRICTION, 0.3f);
+    // Use OpenGL commands to create geometry.
+    glutSolidSphere(200, 32, 32);
+    // End the shape.
+    hlEndShape();
 
+
+    // CONSTRAINT EXAMPLE
+
+    glPushMatrix();
+    hlBeginShape(HL_SHAPE_FEEDBACK_BUFFER, gLineShapeId);
+    hlTouchModel(HL_CONSTRAINT);
+    hlTouchModelf(HL_SNAP_DISTANCE, gLineShapeSnapDistance);
+    hlMaterialf(HL_FRONT, HL_STIFFNESS, 0.2);
+    hlMaterialf(HL_FRONT, HL_STATIC_FRICTION, 0);
+    hlMaterialf(HL_FRONT, HL_DYNAMIC_FRICTION, 0);
+    drawLine();
+    hlEndShape();
+    glPopMatrix();
+    
     for (const auto& entry : active_effects_) {
         ForceEffect* effect = entry.second;
         effect->DrawHaptics();
@@ -231,7 +276,6 @@ void Phantom::OnStopForceEffect(VREvent* event) {
 
 void Phantom::EndHapticFrame() {
     hlEndFrame();
-    CheckHapticError();
 }
 
 
@@ -273,6 +317,57 @@ bool Phantom::CheckHapticError() {
 
 
 void Phantom::DrawGraphics() {
+
+    static const double kCursorRadius = 0.5;
+    static const double kCursorHeight = 1.5;
+    static const int kCursorTess = 15;
+    HLdouble proxyxform[16];
+
+    GLUquadricObj* qobj = 0;
+
+    glPushAttrib(GL_CURRENT_BIT | GL_ENABLE_BIT | GL_LIGHTING_BIT);
+    glPushMatrix();
+
+    if (!gCursorDisplayList)
+    {
+        gCursorDisplayList = glGenLists(1);
+        glNewList(gCursorDisplayList, GL_COMPILE);
+        qobj = gluNewQuadric();
+
+        gluCylinder(qobj, 0.0, kCursorRadius, kCursorHeight,
+            kCursorTess, kCursorTess);
+        glTranslated(0.0, 0.0, kCursorHeight);
+        gluCylinder(qobj, kCursorRadius, 0.0, kCursorHeight / 5.0,
+            kCursorTess, kCursorTess);
+
+        gluDeleteQuadric(qobj);
+        glEndList();
+    }
+
+    // Get the proxy transform in world coordinates.
+    hlGetDoublev(HL_PROXY_TRANSFORM, proxyxform);
+    glMultMatrixd(proxyxform);
+
+    // Apply the local cursor scale factor.
+    glScaled(gCursorScale, gCursorScale, gCursorScale);
+
+    glEnable(GL_COLOR_MATERIAL);
+    HLboolean down;
+    hlGetBooleanv(HL_BUTTON1_STATE, &down);
+    if (down) {
+        glColor3f(1.0, 0.5, 0.0);
+    }
+    else {
+        glColor3f(0.0, 0.5, 1.0);
+    }
+
+    glCallList(gCursorDisplayList);
+
+    glPopMatrix();
+    glPopAttrib();
+
+    
+    
 
     GLUquadricObj* qobj = gluNewQuadric();
 
@@ -330,6 +425,30 @@ void Phantom::DrawGraphics() {
 
     gluDeleteQuadric(qobj);
 
+    
+    
+    HLdouble maxWorkspaceDims[6];
+    hlGetDoublev(HL_MAX_WORKSPACE_DIMS, maxWorkspaceDims);
+    HLdouble size[3];
+    size[0] = maxWorkspaceDims[3] - maxWorkspaceDims[0];
+    size[1] = maxWorkspaceDims[4] - maxWorkspaceDims[1];
+    size[2] = maxWorkspaceDims[5] - maxWorkspaceDims[2];
+    HLdouble center[3];
+    center[0] = maxWorkspaceDims[0] + size[0] / 2.0;
+    center[1] = maxWorkspaceDims[1] + size[1] / 2.0;
+    center[2] = maxWorkspaceDims[2] + size[2] / 2.0;
+
+    glMatrixMode(GL_MODELVIEW);
+    glPushMatrix();
+    //glTranslated(-center[0], -center[1], -center[2]);
+    glScaled(size[0], size[1], size[2]);
+    glDisable(GL_LIGHTING);
+    glutWireCube(1);
+    glEnable(GL_LIGHTING);
+    glPopMatrix();
+    
+    
+    
     for (const auto& entry : active_effects_) {
         ForceEffect* effect = entry.second;
         effect->DrawGraphics();

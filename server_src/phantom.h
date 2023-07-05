@@ -19,19 +19,18 @@ public:
     Phantom(EventMgr* event_mgr);
     virtual ~Phantom();
 
-    // These functions should be called before the main rendering loop starts
-    void RegisterForceEffect(const std::string& effect_name, ForceEffect* effect);
     bool Init(const std::string &device_name = "Default PHANToM");
     
-    // These functions should be called from within the main rendering loop.
-    // BeginHapticFrame() should be he first haptic function called each frame
-    // and EndHapticFrame() should be the last.
-    void BeginHapticFrame();
+    // These functions should be called before the main rendering loop starts
+    void RegisterForceEffect(const std::string& effect_name, ForceEffect* effect);
+
     void PollForInput();
+    
+    void BeginHapticFrame();
     void OnStartForceEffect(VREvent* event);
     void OnStopForceEffect(VREvent* event);
     void DrawHaptics();
-    void Reset();
+    void ResetForces();
     void EndHapticFrame();
 
     // This should also be called once per frame from the main rendering loop.

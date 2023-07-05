@@ -21,7 +21,6 @@ public:
     const std::string name = "AmbientFriction";
     const std::string Name() const { return name; }
         
-    void Init();
     void OnStartEffect();
     void OnStopEffect();
 
@@ -33,6 +32,7 @@ public:
 
 private:
     
+    bool initialized_;
     HLuint effect_id_;
     HLdouble gain_;
     HLdouble magnitude_cap_;

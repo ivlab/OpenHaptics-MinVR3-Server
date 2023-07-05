@@ -33,11 +33,11 @@ void AmbientFriction::OnMagnitudeCapChange(VREvent* e) {
 }
 
 
-void AmbientFriction::Init() {
-    effect_id_ = hlGenEffects(1);
-}
-
 void AmbientFriction::OnStartEffect() {
+    if (!initialized_) {
+        effect_id_ = hlGenEffects(1);
+        initialized_ = true;
+    }
     hlEffectd(HL_EFFECT_PROPERTY_GAIN, gain_);
     hlEffectd(HL_EFFECT_PROPERTY_MAGNITUDE, magnitude_cap_);
     hlStartEffect(HL_EFFECT_FRICTION, effect_id_);
