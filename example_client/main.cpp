@@ -1,4 +1,15 @@
 
+/* todo:
+- line, surf constraints following same style
+- surf contact following similar style
+- examples of each
+- remove tmp sphere from scene
+- reinstate workspace and cursor drawing
+..done..
+..future..
+- flow/follow effect
+- drawing on air
+*/
 #include <chrono>
 #include <iostream>
 #include <string>
