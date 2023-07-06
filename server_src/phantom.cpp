@@ -5,7 +5,15 @@
 
 #include "event_mgr.h"
 #include "force_messages.h"
-#include "graphics_headers.h"
+
+
+HLuint gSphereShapeId = 0;
+HLuint gLineShapeId = 0;
+#define CURSOR_SIZE_PIXELS 20
+static GLuint gCursorDisplayList = 0;
+static double gLineShapeSnapDistance = 0.0;
+double gCursorScale = 1.0;
+
 
 
 void HLCALLBACK Button1DownCallback(HLenum event, HLuint object, HLenum thread, HLcache *cache, void *userdata) {
@@ -31,9 +39,34 @@ void HLCALLBACK MotionCallback(HLenum event, HLuint object, HLenum thread, HLcac
     ((EventMgr*)userdata)->QueueForClient(new VREventQuaternion(ForceMessages::get_rotation_update_event_name(), (float)rot[0], (float)rot[1], (float)rot[2], (float)rot[3]));
 }
 
+void drawLine() {
+    static GLuint displayList = 0;
+    if (displayList) {
+        glCallList(displayList);
+    }
+    else {
+        displayList = glGenLists(1);
+        glNewList(displayList, GL_COMPILE_AND_EXECUTE);
+        glPushAttrib(GL_ENABLE_BIT | GL_LIGHTING_BIT);
+        glDisable(GL_LIGHTING);
+        glLineWidth(2.0);
+        glBegin(GL_LINES);
+        glVertex3f(-300, 250, 0);
+        glVertex3f(300, 250, 0);
+        glEnd();
+        glPointSize(4);
+        glBegin(GL_POINTS);
+        glVertex3f(-300, 250, 0);
+        glVertex3f(0, 250, 0);
+        glVertex3f(300, 250, 0);
+        glEnd();
+        glPopAttrib();
+        glEndList();
+    }
+}
 
 
-Phantom::Phantom(EventMgr* event_mgr) : hd_device_(HD_INVALID_HANDLE), hl_context_(0), event_mgr_(event_mgr), initialized_(false) {
+Phantom::Phantom(EventMgr* event_mgr) : hd_device_(HD_INVALID_HANDLE), hl_context_(0), event_mgr_(event_mgr) {
     event_mgr_->AddListener(ForceMessages::get_force_effect_start_event_name(), this, &Phantom::OnStartForceEffect);
     event_mgr_->AddListener(ForceMessages::get_force_effect_stop_event_name(), this, &Phantom::OnStopForceEffect);
 }
@@ -87,10 +120,12 @@ bool Phantom::Init(const std::string &device_name) {
 
     hl_context_ = hlCreateContext(hd_device_);
     hlMakeCurrent(hl_context_);
+    CheckHapticError();
 
     // Enable optimization of the viewing parameters when rendering
     // geometry for OpenHaptics.
     hlEnable(HL_HAPTIC_CAMERA_VIEW);
+    CheckHapticError();
 
     // setup callbacks for input from the phantom
     hlAddEventCallback(HL_EVENT_1BUTTONDOWN, HL_OBJECT_ANY, HL_CLIENT_THREAD, &Button1DownCallback, event_mgr_);
@@ -100,7 +135,8 @@ bool Phantom::Init(const std::string &device_name) {
     hlEventd(HL_EVENT_MOTION_LINEAR_TOLERANCE, 1.0);   // default 1 mm
     hlEventd(HL_EVENT_MOTION_ANGULAR_TOLERANCE, 0.02); // default 0.02 radians
 
-    
+    CheckHapticError();
+
     /*
     // Generate id for the shape.
     gSphereShapeId = hlGenShapes(1);
@@ -132,13 +168,15 @@ bool Phantom::Init(const std::string &device_name) {
     
     hlTouchableFace(HL_FRONT);
     
-    initialized_ = CheckHapticError();
-    return initialized_;
+    gSphereShapeId = hlGenShapes(1);
+    gLineShapeId = hlGenShapes(1);
+    return true;
 }
 
 void Phantom::RegisterForceEffect(const std::string& effect_name, ForceEffect* effect) {
     effects_[effect_name] = effect;
 }
+
 
 void Phantom::UpdateHapticWorkspace() {
     GLdouble modelview[16];
@@ -189,14 +227,14 @@ void Phantom::PollForInput() {
     hlCheckEvents();
 }
 
-void Phantom::Reset() {
-    for (const auto &entry : active_effects_) {
+void Phantom::StopAllEffects() {
+    for (const auto &entry : effects_) {
         ForceEffect* effect = entry.second;
         effect->OnStopEffect();
     }
-    active_effects_.clear();
-    CheckHapticError();
 }
+
+
 
 void Phantom::DrawHaptics() {
     
@@ -205,6 +243,7 @@ void Phantom::DrawHaptics() {
     // Start a new haptic shape.  Use the feedback buffer to capture OpenGL
     // geometry for haptic rendering.
     hlBeginShape(HL_SHAPE_FEEDBACK_BUFFER, gSphereShapeId);
+    CheckHapticError();
     hlTouchModel(HL_CONTACT);
     // Set material properties for the shapes to be drawn.
     hlMaterialf(HL_FRONT_AND_BACK, HL_STIFFNESS, 0.7f);
@@ -215,12 +254,14 @@ void Phantom::DrawHaptics() {
     glutSolidSphere(200, 32, 32);
     // End the shape.
     hlEndShape();
+    CheckHapticError();
 
 
     // CONSTRAINT EXAMPLE
 
     glPushMatrix();
     hlBeginShape(HL_SHAPE_FEEDBACK_BUFFER, gLineShapeId);
+    CheckHapticError();
     hlTouchModel(HL_CONSTRAINT);
     hlTouchModelf(HL_SNAP_DISTANCE, gLineShapeSnapDistance);
     hlMaterialf(HL_FRONT, HL_STIFFNESS, 0.2);
@@ -229,8 +270,9 @@ void Phantom::DrawHaptics() {
     drawLine();
     hlEndShape();
     glPopMatrix();
-    
-    for (const auto& entry : active_effects_) {
+    CheckHapticError();
+
+    for (const auto& entry : effects_) {
         ForceEffect* effect = entry.second;
         effect->DrawHaptics();
         CheckHapticError();
@@ -246,11 +288,7 @@ void Phantom::OnStartForceEffect(VREvent* event) {
         return;
     }
     std::cout << "STARTING: " << effect_name << std::endl;
-    // add the effect to the list of active effects
-    active_effects_[effect_name] = effects_[effect_name];
-    // start the effect
-    active_effects_[effect_name]->OnStartEffect();
-    CheckHapticError();
+    effects_[effect_name]->OnStartEffect();
 }
 
 void Phantom::OnStopForceEffect(VREvent* event) {
@@ -260,17 +298,8 @@ void Phantom::OnStopForceEffect(VREvent* event) {
         std::cerr << "Phantom::OnStopForceEffect(): Warning, ignoring unknown effect: " << effect_name << std::endl;
         return;
     }
-    if (active_effects_.find(effect_name) == active_effects_.end()) {
-        std::cerr << "Phantom::OnStopForceEffect(): Warning, cannot stop an effect that is not currently running: " << effect_name << std::endl;
-        return;
-    }
     std::cout << "STOPPING: " << effect_name << std::endl;
-
-    // stop the effect
-    active_effects_[effect_name]->OnStopEffect();
-    // remove it from the list of active effects
-    active_effects_.erase(effect_name);
-    CheckHapticError();
+    effects_[effect_name]->OnStopEffect();
 }
 
 
@@ -323,6 +352,7 @@ void Phantom::DrawGraphics() {
     static const int kCursorTess = 15;
     HLdouble proxyxform[16];
 
+
     GLUquadricObj* qobj = 0;
 
     glPushAttrib(GL_CURRENT_BIT | GL_ENABLE_BIT | GL_LIGHTING_BIT);
@@ -363,19 +393,15 @@ void Phantom::DrawGraphics() {
 
     glCallList(gCursorDisplayList);
 
+    glDisable(GL_COLOR_MATERIAL);
     glPopMatrix();
     glPopAttrib();
-
     
     
-
-    GLUquadricObj* qobj = gluNewQuadric();
+    
 
     // DRAW HAPTIC CURSOR
-    static const double kCursorRadius = 5;
-    static const double kCursorHeight = 160;
-    static const int kCursorTess = 15;
-    static const double kCursorScale = 1.0;
+    /*
     GLfloat mat_ambient_gray[] = { 0.5, 0.5, 0.5, 1.0 };
     GLfloat mat_ambient_red[] = { 1.0, 0.0, 0.0, 1.0 };
     GLfloat mat_specular[] = { 1.0, 1.0, 1.0, 1.0 };
@@ -396,6 +422,8 @@ void Phantom::DrawGraphics() {
         glMaterialfv(GL_FRONT, GL_AMBIENT, mat_ambient_gray);
     }
     glTranslated(0.0, 0.0, kCursorHeight / 5.0);
+
+    GLUquadricObj* qobj = gluNewQuadric();
     gluCylinder(qobj, 0.0, kCursorRadius, kCursorHeight / 5.0, kCursorTess, kCursorTess);
 
     glMaterialfv(GL_FRONT, GL_AMBIENT, mat_ambient_gray);
@@ -424,7 +452,7 @@ void Phantom::DrawGraphics() {
     glEnable(GL_LIGHTING);
 
     gluDeleteQuadric(qobj);
-
+    */
     
     
     HLdouble maxWorkspaceDims[6];
@@ -447,9 +475,8 @@ void Phantom::DrawGraphics() {
     glEnable(GL_LIGHTING);
     glPopMatrix();
     
-    
-    
-    for (const auto& entry : active_effects_) {
+        
+    for (const auto& entry : effects_) {
         ForceEffect* effect = entry.second;
         effect->DrawGraphics();
     }

@@ -32,8 +32,11 @@ public:
     void DrawGraphics();
 
 private:
-    
-    bool initialized_;
+    bool start_this_frame_;
+    bool stop_this_frame_;
+    bool update_this_frame_;
+    bool active_;
+
     HLuint effect_id_;
     HLdouble gain_;
     HLdouble magnitude_cap_;

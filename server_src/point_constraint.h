@@ -33,9 +33,8 @@ public:
     void DrawHaptics();
     void DrawGraphics();
 
-private:
-    
-    bool initialized_;
+private:    
+    bool active_;
     HLuint shape_id_;
     
     HLfloat point_[3];

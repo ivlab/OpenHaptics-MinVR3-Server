@@ -8,7 +8,6 @@ set (SOURCEFILES
   server_src/ambient_viscous.cpp
   server_src/event_mgr.cpp
   server_src/force_effect.h
-  server_src/graphics.cpp
   server_src/line_constraint.cpp
   server_src/point_constraint.cpp
   server_src/surface_constraint.cpp
@@ -23,7 +22,6 @@ set (HEADERFILES
   server_src/event_mgr.h
   server_src/force_effect.h
   server_src/force_messages.h
-  server_src/graphics.h
   server_src/line_constraint.h
   server_src/open_haptics.h
   server_src/point_constraint.h

@@ -3,9 +3,10 @@
 
 #include <iostream>
 #include "force_messages.h"
+#include "phantom.h"
 
 
-PointConstraint::PointConstraint(EventMgr* event_mgr) {
+PointConstraint::PointConstraint(EventMgr* event_mgr) : active_(false) {
     point_[0] = 0.0f;         // x
     point_[1] = 0.0f;         // y
     point_[2] = 0.0f;         // z
@@ -109,35 +110,42 @@ void PointConstraint::OnSnapForceChange(VREvent* e) {
 
 
 void PointConstraint::OnStartEffect() {
-    if (!initialized_) {
-        shape_id_ = hlGenShapes(1);
-        initialized_ = true;
-    }
+    active_ = true;
 }
 
 void PointConstraint::OnStopEffect() {
+    active_ = false;
 }
 
 void PointConstraint::DrawHaptics() {
-    hlMaterialf(HL_FRONT, HL_STIFFNESS, stiffness_);
-    hlMaterialf(HL_FRONT, HL_DAMPING, damping_);
-    hlMaterialf(HL_FRONT, HL_STATIC_FRICTION, static_friction_);
-    hlMaterialf(HL_FRONT, HL_DYNAMIC_FRICTION, dynamic_friction_);
-    hlTouchModelf(HL_SNAP_DISTANCE, snap_dist_);
+    if (active_) {
+        if (!hlIsShape(shape_id_)) {
+            shape_id_ = hlGenShapes(1);
+            Phantom::CheckHapticError();
+        }
 
-    
-    hlBeginShape(HL_SHAPE_FEEDBACK_BUFFER, shape_id_);
-    hlTouchModel(HL_CONSTRAINT);
-    glBegin(GL_POINTS);
-    glVertex3fv(point_);
-    glEnd();
-    hlEndShape();
+        hlMaterialf(HL_FRONT, HL_STIFFNESS, stiffness_);
+        hlMaterialf(HL_FRONT, HL_DAMPING, damping_);
+        hlMaterialf(HL_FRONT, HL_STATIC_FRICTION, static_friction_);
+        hlMaterialf(HL_FRONT, HL_DYNAMIC_FRICTION, dynamic_friction_);
+        hlTouchModelf(HL_SNAP_DISTANCE, snap_dist_);
+
+        hlBeginShape(HL_SHAPE_FEEDBACK_BUFFER, shape_id_);
+        hlTouchModel(HL_CONSTRAINT);
+        glBegin(GL_POINTS);
+        glVertex3fv(point_);
+        glEnd();
+        hlEndShape();
+        Phantom::CheckHapticError();
+    }
 }
 
 void PointConstraint::DrawGraphics() {
-    glColor3f(1.0, 1.0, 1.0);
-    glPointSize(5.0);
-    glBegin(GL_POINTS);
-    glVertex3fv(point_);
-    glEnd();
+    if (active_) {
+        glColor3f(1.0, 1.0, 1.0);
+        glPointSize(5.0);
+        glBegin(GL_POINTS);
+        glVertex3fv(point_);
+        glEnd();
+    }
 }

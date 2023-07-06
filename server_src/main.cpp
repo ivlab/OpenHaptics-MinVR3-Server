@@ -58,6 +58,7 @@ void readFromClient();
 void writeToClient();
 void shutdownNetwork();
 
+void drawLine();
 
 int main(int argc, char* argv[])
 {
@@ -72,6 +73,9 @@ int main(int argc, char* argv[])
         }
         port = std::stoi(arg);
     }
+
+    event_mgr = new EventMgr();
+    phantom = new Phantom(event_mgr);
     
     glutInit(&argc, argv);
     glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGB | GLUT_DEPTH);
@@ -116,29 +120,35 @@ void exitHandler() {
 
 // this is essentially the program's mainloop
 void glutDisplay() {
+
     // check for new connections and receive any pending events from the client
     readFromClient();
-    
-    // tell open haptics we are starting a new frame
-    phantom->BeginHapticFrame();
-    
+    phantom->CheckHapticError();
+
     // collect input events from the phantom
     phantom->PollForInput();
+    phantom->CheckHapticError();
 
     // process events received, either over the network or user input, since the last frame.
     // since this comes after BeginHapticFrame(), it is ok to include OpenHaptics calls within
     // any event callback routines.
     event_mgr->ProcessQueue();
-        
-    // update haptic rendering with the latest shape/effect info
-    phantom->DrawHaptics();
+    phantom->CheckHapticError();
 
+    // update haptic rendering with the latest shape/effect info
+    phantom->BeginHapticFrame();
+    phantom->CheckHapticError();
+    phantom->DrawHaptics();
+    phantom->CheckHapticError();
     // end the haptic frame and let the haptic thread take over
     phantom->EndHapticFrame();
+    phantom->CheckHapticError();
+
 
     // draw graphics to the screen
     phantom->DrawGraphics();
     drawGraphics();
+    phantom->CheckHapticError();
     glutSwapBuffers();
     
     // send any events generated for the client during this frame
@@ -147,7 +157,7 @@ void glutDisplay() {
 
 
 void glutIdle() {
-    phantom->CheckHapticError();
+    //phantom->CheckHapticError();
     glutPostRedisplay();
 }
 
@@ -167,8 +177,8 @@ void glutReshape(int width, int height) {
     hduVector3Dd cam_pos(0, 0, 1000);
     hduVector3Dd origin(0, 0, 0);
     hduVector3Dd up(0, 1, 0);
-    double near = 500;
-    double far = 1500;
+    double near_dist = 500;
+    double far_dist = 1500;
     double fov = 40;
     double aspect = (double)width / height;
 
@@ -177,7 +187,7 @@ void glutReshape(int width, int height) {
 
     glMatrixMode(GL_PROJECTION);
     glLoadIdentity();
-    gluPerspective(fov, aspect, near, far);
+    gluPerspective(fov, aspect, near_dist, far_dist);
 
     glMatrixMode(GL_MODELVIEW);
     glLoadIdentity();
@@ -190,32 +200,6 @@ void glutReshape(int width, int height) {
 
 
 // MAIN GRAPHICS FUNCTIONS
-
-void drawLine() {
-    static GLuint displayList = 0;
-    if (displayList) {
-        glCallList(displayList);
-    }
-    else {
-        displayList = glGenLists(1);
-        glNewList(displayList, GL_COMPILE_AND_EXECUTE);
-        glPushAttrib(GL_ENABLE_BIT | GL_LIGHTING_BIT);
-        glDisable(GL_LIGHTING);
-        glLineWidth(2.0);
-        glBegin(GL_LINES);
-        glVertex3f(-300, 250, 0);
-        glVertex3f(300, 250, 0);
-        glEnd();
-        glPointSize(4);
-        glBegin(GL_POINTS);
-        glVertex3f(-300, 250, 0);
-        glVertex3f(0, 250, 0);
-        glVertex3f(300, 250, 0);
-        glEnd();
-        glPopAttrib();
-        glEndList();
-    }
-}
 
 
 void initGraphics() {
@@ -254,9 +238,6 @@ void drawGraphics() {
     
     // draw any other elements of the scene...
     glutSolidSphere(200, 32, 32);
-    glPushMatrix();
-    drawLine();
-    glPopMatrix();
 }
 
 void shutdownGraphics() {
@@ -278,9 +259,9 @@ void readFromClient() {
     if (MinVR3Net::IsReadyToRead(&listener_fd)) {
         SOCKET new_client_fd;
         if (MinVR3Net::TryAcceptConnection(listener_fd, &new_client_fd)) {
-            phantom->Reset();
+            phantom->StopAllEffects();
             client_fd = new_client_fd;
-            std::cout << "New Connection" << std::endl;
+            //std::cout << "New Connection" << std::endl;
         }
     }
     
@@ -290,7 +271,7 @@ void readFromClient() {
             VREvent* e = MinVR3Net::ReceiveVREvent(&client_fd);
             if (e != NULL) {
                 event_mgr->QueueEvent(e);
-                std::cout << "Received: " << *e << std::endl;
+                //std::cout << "Received: " << *e << std::endl;
             }
         }
     }
