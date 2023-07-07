@@ -54,10 +54,10 @@ bool Phantom::is_primary_btn_down() {
     return down;
 }
 
-bool Phantom::is_in_adjusted_workspace() {
-    float xabs = adjusted_workspace_size_[0] / 2.0;
-    float yabs = adjusted_workspace_size_[1] / 2.0;
-    float zabs = adjusted_workspace_size_[2] / 2.0;
+bool Phantom::is_in_custom_workspace() {
+    float xabs = custom_workspace_size_[0] / 2.0;
+    float yabs = custom_workspace_size_[1] / 2.0;
+    float zabs = custom_workspace_size_[2] / 2.0;
     if (position()[0] < -xabs) return false;
     if (position()[0] > xabs) return false;
     if (position()[1] < -yabs) return false;
@@ -126,9 +126,12 @@ bool Phantom::Init(const std::string &device_name) {
     // Second, this is a super conservative view of the usable workspace.  The device can
     // typically generate good force feedback in a much larger volume.
 
-    // So, this class uses these custom workspace dimensions instead of querying them from
-    // openhaptics whenever the max dimensions are needed.  Note that if a different Phantom
-    // device is used, these will need to be updated.
+    // To remedy this, we do two things:
+    // 1. We define these custom workspace dims and use them wherever we might otherwise
+    //    ask openhaptics for the max dimensions.
+    // 2. We apply a translation in the UpdateHapticWorkspace() method to place (0,0,0) at
+    //    the center of the custom workspace.  This means objects rendered at the origin
+    //    will tend be be centered within the Phantom's good working range.
     custom_workspace_dims_[0] = -600;
     custom_workspace_dims_[1] = -94;
     custom_workspace_dims_[2] = -95;
@@ -136,42 +139,10 @@ bool Phantom::Init(const std::string &device_name) {
     custom_workspace_dims_[4] = 521.5;
     custom_workspace_dims_[5] = 495;
 
-
-    //HLdouble maxWorkspaceDims[6];
-    //hlGetDoublev(HL_MAX_WORKSPACE_DIMS, maxWorkspaceDims);
-    //HLdouble size[3];
-    //size[0] = maxWorkspaceDims[3] - maxWorkspaceDims[0];
-    //size[1] = maxWorkspaceDims[4] - maxWorkspaceDims[1];
-    //size[2] = maxWorkspaceDims[5] - maxWorkspaceDims[2];
-    //HLdouble center[3];
-    //center[0] = maxWorkspaceDims[0] + size[0] / 2.0;
-    //center[1] = maxWorkspaceDims[1] + size[1] / 2.0;
-    //center[2] = maxWorkspaceDims[2] + size[2] / 2.0;
-
-    // For the Phantom Premium 1.5, the following values are much better
-    HLdouble maxWorkspaceDims[6];
-    // hlGetDoublev(HL_MAX_WORKSPACE_DIMS, maxWorkspaceDims);
-    // -265, -94, -95, 265, 521.5, 129
-
-
-
-    HLdouble size[3];
-    size[0] = maxWorkspaceDims[3] - maxWorkspaceDims[0];
-    size[1] = maxWorkspaceDims[4] - maxWorkspaceDims[1];
-    size[2] = maxWorkspaceDims[5] - maxWorkspaceDims[2];
-    HLdouble center[3];
-    center[0] = maxWorkspaceDims[0] + size[0] / 2.0;
-    center[1] = maxWorkspaceDims[1] + size[1] / 2.0;
-    center[2] = maxWorkspaceDims[2] + size[2] / 2.0;
-
-
-    adjusted_workspace_dims_
-    HLdouble maxWorkspaceDims[6];
-    hlGetDoublev(HL_MAX_WORKSPACE_DIMS, maxWorkspaceDims);
-    adjusted_workspace_size_[0] = 2.25 * (maxWorkspaceDims[3] - maxWorkspaceDims[0]);
-    adjusted_workspace_size_[1] = maxWorkspaceDims[4] - maxWorkspaceDims[1];
-    adjusted_workspace_size_[2] = maxWorkspaceDims[5] - maxWorkspaceDims[2];
-
+    custom_workspace_size_[0] = custom_workspace_dims_[3] - custom_workspace_dims_[0];
+    custom_workspace_size_[1] = custom_workspace_dims_[4] - custom_workspace_dims_[1];
+    custom_workspace_size_[2] = custom_workspace_dims_[5] - custom_workspace_dims_[2];
+    
     CheckHapticError();
     return true;
 }
@@ -191,48 +162,12 @@ void Phantom::UpdateHapticWorkspace() {
     GLint viewport[4];
     glGetIntegerv(GL_VIEWPORT, viewport);
 
-
-    // For the IV/LAB Phantom Premium 1.5, the code below reports
-    //   size = 530, 615.5, 224
-    //   center = 0, 213.75, 17
-    // But, these are not very user friendly values.
-    // First, the center of the workspace is not (0,0,0).
-    // Second, this is a super conservative view of the usable workspace.  The device can
-    // typically generate good force feedback in a much larger volume.
-    
-    //HLdouble maxWorkspaceDims[6];
-    //hlGetDoublev(HL_MAX_WORKSPACE_DIMS, maxWorkspaceDims);
-    //HLdouble size[3];
-    //size[0] = maxWorkspaceDims[3] - maxWorkspaceDims[0];
-    //size[1] = maxWorkspaceDims[4] - maxWorkspaceDims[1];
-    //size[2] = maxWorkspaceDims[5] - maxWorkspaceDims[2];
-    //HLdouble center[3];
-    //center[0] = maxWorkspaceDims[0] + size[0] / 2.0;
-    //center[1] = maxWorkspaceDims[1] + size[1] / 2.0;
-    //center[2] = maxWorkspaceDims[2] + size[2] / 2.0;
-    
-    // For the Phantom Premium 1.5, the following values are much better
-    HLdouble maxWorkspaceDims[6];
-    // hlGetDoublev(HL_MAX_WORKSPACE_DIMS, maxWorkspaceDims);
-    // -265, -94, -95, 265, 521.5, 129
-    maxWorkspaceDims[0] = -600;
-    maxWorkspaceDims[1] = -94;
-    maxWorkspaceDims[2] = -95;
-
-    maxWorkspaceDims[3] = 600;
-    maxWorkspaceDims[4] = 521.5;
-    maxWorkspaceDims[5] = 495;
-
-
-    HLdouble size[3];
-    size[0] = maxWorkspaceDims[3] - maxWorkspaceDims[0];
-    size[1] = maxWorkspaceDims[4] - maxWorkspaceDims[1];
-    size[2] = maxWorkspaceDims[5] - maxWorkspaceDims[2];
+    // Note the use of custom_workspace_dims_ and custom_workspace_size_ here instead of
+    // querying OpenHaptics for the max workspace.  See comments in Init() for more info.
     HLdouble center[3];
-    center[0] = maxWorkspaceDims[0] + size[0] / 2.0;
-    center[1] = maxWorkspaceDims[1] + size[1] / 2.0;
-    center[2] = maxWorkspaceDims[2] + size[2] / 2.0;
-
+    center[0] = custom_workspace_dims_[0] + custom_workspace_size_[0] / 2.0;
+    center[1] = custom_workspace_dims_[1] + custom_workspace_size_[1] / 2.0;
+    center[2] = custom_workspace_dims_[2] + custom_workspace_size_[2] / 2.0;
 
     hlMatrixMode(HL_TOUCHWORKSPACE);
     hlLoadIdentity();
@@ -361,16 +296,12 @@ void Phantom::DrawGraphics() {
     glPopAttrib();
     
     
-    // Draw a light indication of the max workspace size as reported by openhaptics with 
-    // the change that they REALLY underestimate the usable horizontal space of the PHANToM 
-    // Premium devices.  We can more than double the X dimension and get a lot of nice
-    // usable space!  When client specify haptic effects, everything should work pretty
-    // well if the coordinates fall within these dimensions.
+    // Draw an indication of the maximum usable workspace of the Phantom.
     glMatrixMode(GL_MODELVIEW);
     glPushMatrix();
-    glScaled(adjusted_workspace_size_[0], adjusted_workspace_size_[1], adjusted_workspace_size_[2]);
+    glScaled(custom_workspace_size_[0], custom_workspace_size_[1], custom_workspace_size_[2]);
     glDisable(GL_LIGHTING);
-    if (is_in_adjusted_workspace()) {
+    if (is_in_custom_workspace()) {
         glColor3f(0.5, 0.5, 0.5);
     }
     else {

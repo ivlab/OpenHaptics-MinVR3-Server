@@ -42,7 +42,7 @@ public:
     double* rotation();
 
     bool is_primary_btn_down();
-    bool is_in_adjusted_workspace();
+    bool is_in_custom_workspace();
     
 protected:
     EventMgr* event_mgr_;
@@ -54,7 +54,8 @@ protected:
     HDdouble rotation_[4];
 
     HDdouble custom_workspace_dims_[6];
-    
+    HDdouble custom_workspace_size_[3];
+
     std::map<std::string, ForceEffect*> effects_;
 };
 
