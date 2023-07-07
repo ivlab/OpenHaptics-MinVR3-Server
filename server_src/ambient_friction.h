@@ -29,16 +29,17 @@ public:
  
     void DrawHaptics();
     void DrawGraphics();
+    void Reset();
 
 private:
-    bool start_this_frame_;
-    bool stop_this_frame_;
-    bool update_this_frame_;
-    bool active_;
-
     HLuint effect_id_;
+
+    bool params_dirty_; // true when any of the params below has changed; changes are applied to OpenHaptics during DrawHaptics()
     HLdouble gain_;
     HLdouble magnitude_cap_;
+
+    bool active_;
+    bool active_buffered_; // set by incoming events; acts as a dirty flag; if != active_ then the new state is applied during DrawHaptics()
 };
 
 #endif

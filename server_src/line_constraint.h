@@ -35,9 +35,10 @@ public:
     void OnAddVertex(VREvent* e);
     void OnEndLines(VREvent* e);
 
-    // called by Phantom once per frame
+    // called by Phantom class
     void DrawHaptics();
     void DrawGraphics();
+    void Reset();
 
 private:
     bool active_;

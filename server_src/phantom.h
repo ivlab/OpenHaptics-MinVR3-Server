@@ -19,17 +19,13 @@ public:
 
     bool Init(const std::string &device_name = "Default PHANToM");
     
-    // These functions should be called before the main rendering loop starts
-    void RegisterForceEffect(const std::string& effect_name, ForceEffect* effect);
+    void RegisterForceEffect(ForceEffect* effect);
 
     void PollForInput();
     void UpdateHapticWorkspace();
-
+    void Reset();
 
     void BeginHapticFrame();
-    void OnStartForceEffect(VREvent* event);
-    void OnStopForceEffect(VREvent* event);
-    void StopAllEffects();
     void DrawHaptics();
     void EndHapticFrame();
 
@@ -41,10 +37,12 @@ public:
     // Prints an error message and returns true if an error occurred, false is everything is ok
     static bool CheckHapticError();
 
-    bool is_primary_btn_down();
     double* transform();
     double* position();
     double* rotation();
+
+    bool is_primary_btn_down();
+    bool is_in_adjusted_workspace();
     
 protected:
     EventMgr* event_mgr_;
@@ -54,6 +52,8 @@ protected:
     HDdouble transform_[16];
     HDdouble position_[3];
     HDdouble rotation_[4];
+
+    HDdouble custom_workspace_dims_[6];
     
     std::map<std::string, ForceEffect*> effects_;
 };

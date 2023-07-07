@@ -7,7 +7,7 @@
 #include <iostream>
 
 AmbientViscous::AmbientViscous(EventMgr* event_mgr) : gain_(0.8), magnitude_cap_(1.0), effect_id_(0),
-    start_this_frame_(false), stop_this_frame_(false), update_this_frame_(false), active_(false)
+    active_(false), active_buffered_(false), params_dirty_(false)
 {
     std::string event_name = ForceMessages::get_force_effect_prefix() + Name() + "/Start";
     event_mgr->AddListener(event_name, this, &AmbientViscous::OnStartEffect);
@@ -31,7 +31,7 @@ void AmbientViscous::OnGainChange(VREvent* e) {
     if (e_gain != NULL) { // should always pass
         // new value will be updated on the next DrawHaptics call
         gain_ = e_gain->get_data();
-        update_this_frame_ = true;
+        params_dirty_ = true;
     }
 }
 
@@ -40,47 +40,28 @@ void AmbientViscous::OnMagnitudeCapChange(VREvent* e) {
     if (e_mag != NULL) { // should always pass
         // new value will be updated on the next DrawHaptics call
         magnitude_cap_ = e_mag->get_data();
-        update_this_frame_ = true;
+        params_dirty_ = true;
     }
 }
 
 void AmbientViscous::OnStartEffect(VREvent* e) {
-    if (stop_this_frame_) {
-        // if stop this frame was already set, then this is a really fast stop/start sequence within a single frame!
-        // just do nothing in this case
-        start_this_frame_ = false;
-        stop_this_frame_ = false;
-    }
-    else {
-        start_this_frame_ = true;
-    }
+    active_buffered_ = true;
 }
 
 void AmbientViscous::OnStopEffect(VREvent* e) {
-    if (start_this_frame_) {
-        // if start this frame was already set, then this is a really fast start/stop sequence within a single frame!
-        // just do nothing in this case
-        start_this_frame_ = false;
-        stop_this_frame_ = false;
-    }
-    else {
-        stop_this_frame_ = true;
-    }
+    active_buffered_ = false;
+}
+
+void AmbientViscous::Reset() {
+    active_buffered_ = false;
 }
 
 void AmbientViscous::DrawHaptics() {    
-    // OpenHaptics generates an error if hlUpdateEffect() is called in the same frame as hlStartEffect()
-    // So, we pick one thing to do each frame: either start, stop, or update.  The effect params are
-    // set before a start, so this works well even if start and update were called in the same frame.
-    // If stop and update were called in the same frame, then we just stop, there is no point to doing
-    // an update.  The logic for if start and stop were called in the same frame is included in the
-    // OnStart/Stop routines above.
-
-    if (start_this_frame_) {
-        if (active_) {
-            std::cerr << "AmbientViscous::DrawHaptics() Warning: Trying to start effect that is already active." << std::endl;
-        }
-        else {
+    // if a change in the active status has occurred since the last frame, then handle it
+ // by either starting or stopping the OpenHaptics force effect
+    if (active_buffered_ != active_) {
+        if (!active_) {
+            // start the effect
             if (!hlIsEffect(effect_id_)) {
                 effect_id_ = hlGenEffects(1);
                 Phantom::CheckHapticError();
@@ -90,36 +71,26 @@ void AmbientViscous::DrawHaptics() {
             hlStartEffect(HL_EFFECT_VISCOUS, effect_id_);
             Phantom::CheckHapticError();
             active_ = true;
-            //std::cout << "STARTED VISCOUS" << std::endl;
-        }
-    }
-    else if (stop_this_frame_) {
-        if (!active_) {
-            std::cerr << "AmbientViscous::DrawHaptics() Warning: Trying to stop effect that is not active." << std::endl;
         }
         else {
+            // stop the effect
             hlStopEffect(effect_id_);
             Phantom::CheckHapticError();
             active_ = false;
-            //std::cout << "STOPPED VISCOUS" << std::endl;
         }
+        active_buffered_ = active_;
     }
-    else if (update_this_frame_) {
-        if (active_) {
-            // only update if the effect has already been started, otherwise, it will be started with the latest parameters
-            // whenever start is called.
-            hlEffectd(HL_EFFECT_PROPERTY_GAIN, gain_);
-            hlEffectd(HL_EFFECT_PROPERTY_MAGNITUDE, magnitude_cap_);
-            hlUpdateEffect(effect_id_);
-            Phantom::CheckHapticError();
-            //std::cout << "UPDATED VISCOUS" << std::endl;
-        }
+    // if we have new values for params && the effect is active, then update the params
+    // note: an error is generated if you update before the effect is started.
+    // note: this must happen in an else statement because an error is also generated if
+    // you call hlUpdateEffect() in the same haptic frame where you called hlStartEffect()!
+    else if ((params_dirty_) && (active_)) {
+        hlEffectd(HL_EFFECT_PROPERTY_GAIN, gain_);
+        hlEffectd(HL_EFFECT_PROPERTY_MAGNITUDE, magnitude_cap_);
+        hlUpdateEffect(effect_id_);
+        Phantom::CheckHapticError();
+        params_dirty_ = false;
     }
-
-    // reset dirty flags
-    start_this_frame_ = false;
-    update_this_frame_ = false;
-    stop_this_frame_ = false;
 }
 
 void AmbientViscous::DrawGraphics() {    

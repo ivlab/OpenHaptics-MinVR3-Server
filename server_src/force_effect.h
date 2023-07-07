@@ -9,7 +9,8 @@ public:
     virtual const std::string Name() const = 0;
     virtual void DrawHaptics() = 0;
     virtual void DrawGraphics() = 0;
-    
+    virtual void Reset() = 0;
+
     ForceEffect() {}
     virtual ~ForceEffect() {}
 };

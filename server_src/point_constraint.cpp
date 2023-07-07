@@ -60,6 +60,13 @@ void PointConstraint::OnStopEffect(VREvent* e) {
     active_ = false;
 }
 
+void PointConstraint::Reset() {
+    points_.clear();
+    points_tmp_buffer_.clear();
+    active_ = false;
+}
+
+
 void PointConstraint::OnBeginPoints(VREvent* e) {
     // add to a tmp buffer and only "commit" the vertices to the points list used in the
     // haptic draw method after receiving ALL of the points.
@@ -163,6 +170,7 @@ void PointConstraint::DrawHaptics() {
 
 void PointConstraint::DrawGraphics() {
     if ((active_) && (!points_.empty())) {
+        glDisable(GL_LIGHTING);
         glColor3f(1.0, 1.0, 1.0);
         glPointSize(5.0);
         glBegin(GL_POINTS);
@@ -170,5 +178,6 @@ void PointConstraint::DrawGraphics() {
             glVertex3f(points_[i][0], points_[i][1], points_[i][2]);
         }
         glEnd();
+        glEnable(GL_LIGHTING);
     }
 }

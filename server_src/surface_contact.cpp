@@ -1,69 +1,62 @@
 
-#include "surface_constraint.h"
+#include "surface_contact.h"
 
 #include <iostream>
 #include "force_messages.h"
 #include "phantom.h"
 
 
-SurfaceConstraint::SurfaceConstraint(EventMgr* event_mgr) : active_(false) {
+SurfaceContact::SurfaceContact(EventMgr* event_mgr) : active_(false) {
     stiffness_ = 0.2f;        // 0..1
     damping_ = 0.2f;          // 0..1
     static_friction_ = 0.2f;  // 0..1
     dynamic_friction_ = 0.2f; // 0..1
-    snap_dist_ = 10.0f;       // dist in mm
-    
+
     std::string event_name = ForceMessages::get_force_effect_prefix() + Name() + "/Start";
-    event_mgr->AddListener(event_name, this, &SurfaceConstraint::OnStartEffect);
+    event_mgr->AddListener(event_name, this, &SurfaceContact::OnStartEffect);
 
     event_name = ForceMessages::get_force_effect_prefix() + Name() + "/Stop";
-    event_mgr->AddListener(event_name, this, &SurfaceConstraint::OnStopEffect);
+    event_mgr->AddListener(event_name, this, &SurfaceContact::OnStopEffect);
 
     event_name = ForceMessages::get_force_effect_prefix() + Name() + "/BeginGeometry";
-    event_mgr->AddListener(event_name, this, &SurfaceConstraint::OnBeginGeometry);
-    
+    event_mgr->AddListener(event_name, this, &SurfaceContact::OnBeginGeometry);
+
     event_name = ForceMessages::get_force_effect_prefix() + Name() + "/AddVertex";
-    event_mgr->AddListener(event_name, this, &SurfaceConstraint::OnAddVertex);
-    
+    event_mgr->AddListener(event_name, this, &SurfaceContact::OnAddVertex);
+
     event_name = ForceMessages::get_force_effect_prefix() + Name() + "/AddIndices";
-    event_mgr->AddListener(event_name, this, &SurfaceConstraint::OnAddIndices);
+    event_mgr->AddListener(event_name, this, &SurfaceContact::OnAddIndices);
 
     event_name = ForceMessages::get_force_effect_prefix() + Name() + "/EndGeometry";
-    event_mgr->AddListener(event_name, this, &SurfaceConstraint::OnEndGeometry);
+    event_mgr->AddListener(event_name, this, &SurfaceContact::OnEndGeometry);
 
     event_name = ForceMessages::get_force_effect_prefix() + Name() + "/SetStiffness";
-    event_mgr->AddListener(event_name, this, &SurfaceConstraint::OnStiffnessChange);
-    
+    event_mgr->AddListener(event_name, this, &SurfaceContact::OnStiffnessChange);
+
     event_name = ForceMessages::get_force_effect_prefix() + Name() + "/SetDamping";
-    event_mgr->AddListener(event_name, this, &SurfaceConstraint::OnDampingChange);
+    event_mgr->AddListener(event_name, this, &SurfaceContact::OnDampingChange);
 
     event_name = ForceMessages::get_force_effect_prefix() + Name() + "/SetStaticFriction";
-    event_mgr->AddListener(event_name, this, &SurfaceConstraint::OnStaticFrictionChange);
-    
+    event_mgr->AddListener(event_name, this, &SurfaceContact::OnStaticFrictionChange);
+
     event_name = ForceMessages::get_force_effect_prefix() + Name() + "/SetDynamicFriction";
-    event_mgr->AddListener(event_name, this, &SurfaceConstraint::OnDynamicFrictionChange);
-    
-    event_name = ForceMessages::get_force_effect_prefix() + Name() + "/SetSnapDistance";
-    event_mgr->AddListener(event_name, this, &SurfaceConstraint::OnSnapDistanceChange);
-    
-    event_name = ForceMessages::get_force_effect_prefix() + Name() + "/SetSnapForce";
-    event_mgr->AddListener(event_name, this, &SurfaceConstraint::OnSnapForceChange);
+    event_mgr->AddListener(event_name, this, &SurfaceContact::OnDynamicFrictionChange);
 }
 
-SurfaceConstraint::~SurfaceConstraint() {
+SurfaceContact::~SurfaceContact() {
 }
 
 
 
-void SurfaceConstraint::OnStartEffect(VREvent* e) {
+void SurfaceContact::OnStartEffect(VREvent* e) {
     active_ = true;
 }
 
-void SurfaceConstraint::OnStopEffect(VREvent* e) {
+void SurfaceContact::OnStopEffect(VREvent* e) {
     active_ = false;
 }
 
-void SurfaceConstraint::Reset() {
+void SurfaceContact::Reset() {
     verts_.clear();
     verts_tmp_buffer_.clear();
     indices_.clear();
@@ -72,14 +65,14 @@ void SurfaceConstraint::Reset() {
 }
 
 
-void SurfaceConstraint::OnBeginGeometry(VREvent* e) {
+void SurfaceContact::OnBeginGeometry(VREvent* e) {
     // add to a tmp buffer and only "commit" the vertices to the points list used in the
     // haptic draw method after receiving ALL of the points.
     verts_tmp_buffer_.clear();
     indices_tmp_buffer_.clear();
 }
 
-void SurfaceConstraint::OnAddVertex(VREvent* e) {
+void SurfaceContact::OnAddVertex(VREvent* e) {
     VREventVector3* e_p = dynamic_cast<VREventVector3*>(e);
     if (e_p != NULL) { // should always pass
         hduVector3Df v(e_p->x(), e_p->y(), e_p->z());
@@ -87,7 +80,7 @@ void SurfaceConstraint::OnAddVertex(VREvent* e) {
     }
 }
 
-void SurfaceConstraint::OnAddIndices(VREvent* e) {
+void SurfaceContact::OnAddIndices(VREvent* e) {
     VREventVector3* e_p = dynamic_cast<VREventVector3*>(e);
     if (e_p != NULL) { // should always pass
         indices_tmp_buffer_.push_back((int)e_p->x());
@@ -97,12 +90,12 @@ void SurfaceConstraint::OnAddIndices(VREvent* e) {
 }
 
 
-void SurfaceConstraint::OnEndGeometry(VREvent* e) {
+void SurfaceContact::OnEndGeometry(VREvent* e) {
     verts_ = verts_tmp_buffer_;
     indices_ = indices_tmp_buffer_;
 }
 
-void SurfaceConstraint::OnStiffnessChange(VREvent* e) {
+void SurfaceContact::OnStiffnessChange(VREvent* e) {
     VREventFloat* e_float = dynamic_cast<VREventFloat*>(e);
     if (e_float != NULL) { // should always pass
         // new value will be updated on the next DrawHaptics call
@@ -110,7 +103,7 @@ void SurfaceConstraint::OnStiffnessChange(VREvent* e) {
     }
 }
 
-void SurfaceConstraint::OnDampingChange(VREvent* e) {
+void SurfaceContact::OnDampingChange(VREvent* e) {
     VREventFloat* e_float = dynamic_cast<VREventFloat*>(e);
     if (e_float != NULL) { // should always pass
         // new value will be updated on the next DrawHaptics call
@@ -118,7 +111,7 @@ void SurfaceConstraint::OnDampingChange(VREvent* e) {
     }
 }
 
-void SurfaceConstraint::OnStaticFrictionChange(VREvent* e) {
+void SurfaceContact::OnStaticFrictionChange(VREvent* e) {
     VREventFloat* e_float = dynamic_cast<VREventFloat*>(e);
     if (e_float != NULL) { // should always pass
         // new value will be updated on the next DrawHaptics call
@@ -126,7 +119,7 @@ void SurfaceConstraint::OnStaticFrictionChange(VREvent* e) {
     }
 }
 
-void SurfaceConstraint::OnDynamicFrictionChange(VREvent* e) {
+void SurfaceContact::OnDynamicFrictionChange(VREvent* e) {
     VREventFloat* e_float = dynamic_cast<VREventFloat*>(e);
     if (e_float != NULL) { // should always pass
         // new value will be updated on the next DrawHaptics call
@@ -134,33 +127,7 @@ void SurfaceConstraint::OnDynamicFrictionChange(VREvent* e) {
     }
 }
 
-void SurfaceConstraint::OnSnapDistanceChange(VREvent* e) {
-    VREventFloat* e_float = dynamic_cast<VREventFloat*>(e);
-    if (e_float != NULL) { // should always pass
-        // new value will be updated on the next DrawHaptics call
-        snap_dist_ = e_float->get_data();
-    }
-}
-
-void SurfaceConstraint::OnSnapForceChange(VREvent* e) {
-    VREventFloat* e_float = dynamic_cast<VREventFloat*>(e);
-    if (e_float != NULL) { // should always pass
-        // Alternative method for setting the snap distance... we can get a
-        // good approximation of the snap distance to use by solving: F = k * x
-        // F: Force in Newtons (N).
-        // k: Stiffness control coefficient (N/mm).
-        // x: Displacement (i.e. snap distance).
-        double F = e_float->get_data();
-        HDdouble k;
-        hdGetDoublev(HD_NOMINAL_MAX_STIFFNESS, &k);
-        HDdouble x = F / k;
-        // new value will be updated on the next DrawHaptics call
-        snap_dist_ = (float)x;
-    }
-}
-
-
-void SurfaceConstraint::DrawHaptics() {
+void SurfaceContact::DrawHaptics() {
     if ((active_) && (!verts_.empty()) && (!indices_.empty())) {
         if (!hlIsShape(shape_id_)) {
             shape_id_ = hlGenShapes(1);
@@ -171,12 +138,11 @@ void SurfaceConstraint::DrawHaptics() {
         hlMaterialf(HL_FRONT, HL_DAMPING, damping_);
         hlMaterialf(HL_FRONT, HL_STATIC_FRICTION, static_friction_);
         hlMaterialf(HL_FRONT, HL_DYNAMIC_FRICTION, dynamic_friction_);
-        hlTouchModelf(HL_SNAP_DISTANCE, snap_dist_);
 
         hlBeginShape(HL_SHAPE_FEEDBACK_BUFFER, shape_id_);
-        hlTouchModel(HL_CONSTRAINT);
+        hlTouchModel(HL_CONTACT);
         glBegin(GL_TRIANGLES);
-        for (int i=0; i<indices_.size(); i++) {
+        for (int i = 0; i < indices_.size(); i++) {
             glVertex3f(verts_[indices_[i]][0], verts_[indices_[i]][1], verts_[indices_[i]][2]);
         }
         glEnd();
@@ -185,11 +151,11 @@ void SurfaceConstraint::DrawHaptics() {
     }
 }
 
-void SurfaceConstraint::DrawGraphics() {
+void SurfaceContact::DrawGraphics() {
     if ((active_) && (!verts_.empty())) {
-        glColor3f(1, 0.3, 0.3);
+        glColor3f(1.0, 1.0, 0.3);
         glBegin(GL_TRIANGLES);
-        for (int i=0; i<indices_.size(); i++) {
+        for (int i = 0; i < indices_.size(); i++) {
             glVertex3f(verts_[indices_[i]][0], verts_[indices_[i]][1], verts_[indices_[i]][2]);
         }
         glEnd();

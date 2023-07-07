@@ -7,14 +7,6 @@
 #include "force_messages.h"
 
 
-HLuint gSphereShapeId = 0;
-HLuint gLineShapeId = 0;
-#define CURSOR_SIZE_PIXELS 20
-static GLuint gCursorDisplayList = 0;
-static double gLineShapeSnapDistance = 0.0;
-double gCursorScale = 1.0;
-
-
 
 void HLCALLBACK Button1DownCallback(HLenum event, HLuint object, HLenum thread, HLcache *cache, void *userdata) {
     ((EventMgr*)userdata)->QueueEvent(new VREvent(ForceMessages::get_primary_btn_down_event_name()));
@@ -39,36 +31,8 @@ void HLCALLBACK MotionCallback(HLenum event, HLuint object, HLenum thread, HLcac
     ((EventMgr*)userdata)->QueueForClient(new VREventQuaternion(ForceMessages::get_rotation_update_event_name(), (float)rot[0], (float)rot[1], (float)rot[2], (float)rot[3]));
 }
 
-void drawLine() {
-    static GLuint displayList = 0;
-    if (displayList) {
-        glCallList(displayList);
-    }
-    else {
-        displayList = glGenLists(1);
-        glNewList(displayList, GL_COMPILE_AND_EXECUTE);
-        glPushAttrib(GL_ENABLE_BIT | GL_LIGHTING_BIT);
-        glDisable(GL_LIGHTING);
-        glLineWidth(2.0);
-        glBegin(GL_LINES);
-        glVertex3f(-300, 250, 0);
-        glVertex3f(300, 250, 0);
-        glEnd();
-        glPointSize(4);
-        glBegin(GL_POINTS);
-        glVertex3f(-300, 250, 0);
-        glVertex3f(0, 250, 0);
-        glVertex3f(300, 250, 0);
-        glEnd();
-        glPopAttrib();
-        glEndList();
-    }
-}
-
 
 Phantom::Phantom(EventMgr* event_mgr) : hd_device_(HD_INVALID_HANDLE), hl_context_(0), event_mgr_(event_mgr) {
-    event_mgr_->AddListener(ForceMessages::get_force_effect_start_event_name(), this, &Phantom::OnStartForceEffect);
-    event_mgr_->AddListener(ForceMessages::get_force_effect_stop_event_name(), this, &Phantom::OnStopForceEffect);
 }
 
 Phantom::~Phantom() {
@@ -89,6 +53,20 @@ bool Phantom::is_primary_btn_down() {
     hlGetBooleanv(HL_BUTTON1_STATE, &down);
     return down;
 }
+
+bool Phantom::is_in_adjusted_workspace() {
+    float xabs = adjusted_workspace_size_[0] / 2.0;
+    float yabs = adjusted_workspace_size_[1] / 2.0;
+    float zabs = adjusted_workspace_size_[2] / 2.0;
+    if (position()[0] < -xabs) return false;
+    if (position()[0] > xabs) return false;
+    if (position()[1] < -yabs) return false;
+    if (position()[1] > yabs) return false;
+    if (position()[2] < -zabs) return false;
+    if (position()[2] > zabs) return false;
+    return true;
+}
+
 
 double* Phantom::transform() {
     hlGetDoublev(HL_PROXY_TRANSFORM, transform_);
@@ -125,56 +103,81 @@ bool Phantom::Init(const std::string &device_name) {
     // Enable optimization of the viewing parameters when rendering
     // geometry for OpenHaptics.
     hlEnable(HL_HAPTIC_CAMERA_VIEW);
-    CheckHapticError();
 
     // setup callbacks for input from the phantom
     hlAddEventCallback(HL_EVENT_1BUTTONDOWN, HL_OBJECT_ANY, HL_CLIENT_THREAD, &Button1DownCallback, event_mgr_);
     hlAddEventCallback(HL_EVENT_1BUTTONUP, HL_OBJECT_ANY, HL_CLIENT_THREAD, &Button1UpCallback, event_mgr_);
     hlAddEventCallback(HL_EVENT_MOTION, HL_OBJECT_ANY, HL_CLIENT_THREAD, &MotionCallback, event_mgr_);
+
     // set thresholds for how much the phantom must before a new motion event is fired
     hlEventd(HL_EVENT_MOTION_LINEAR_TOLERANCE, 1.0);   // default 1 mm
     hlEventd(HL_EVENT_MOTION_ANGULAR_TOLERANCE, 0.02); // default 0.02 radians
 
+    hlTouchableFace(HL_FRONT_AND_BACK);
+
+    
+    
+    // For the IV/LAB Phantom Premium 1.5, the workspace reported from OpenHaptics with 
+    //   HLdouble maxWorkspaceDims[6];
+    //   hlGetDoublev(HL_MAX_WORKSPACE_DIMS, maxWorkspaceDims);
+    // is this: -265, -94, -95, 265, 521.5, 129
+    // But, these are not very user friendly values.
+    // First, the center of the workspace is not (0,0,0).
+    // Second, this is a super conservative view of the usable workspace.  The device can
+    // typically generate good force feedback in a much larger volume.
+
+    // So, this class uses these custom workspace dimensions instead of querying them from
+    // openhaptics whenever the max dimensions are needed.  Note that if a different Phantom
+    // device is used, these will need to be updated.
+    custom_workspace_dims_[0] = -600;
+    custom_workspace_dims_[1] = -94;
+    custom_workspace_dims_[2] = -95;
+    custom_workspace_dims_[3] = 600;
+    custom_workspace_dims_[4] = 521.5;
+    custom_workspace_dims_[5] = 495;
+
+
+    //HLdouble maxWorkspaceDims[6];
+    //hlGetDoublev(HL_MAX_WORKSPACE_DIMS, maxWorkspaceDims);
+    //HLdouble size[3];
+    //size[0] = maxWorkspaceDims[3] - maxWorkspaceDims[0];
+    //size[1] = maxWorkspaceDims[4] - maxWorkspaceDims[1];
+    //size[2] = maxWorkspaceDims[5] - maxWorkspaceDims[2];
+    //HLdouble center[3];
+    //center[0] = maxWorkspaceDims[0] + size[0] / 2.0;
+    //center[1] = maxWorkspaceDims[1] + size[1] / 2.0;
+    //center[2] = maxWorkspaceDims[2] + size[2] / 2.0;
+
+    // For the Phantom Premium 1.5, the following values are much better
+    HLdouble maxWorkspaceDims[6];
+    // hlGetDoublev(HL_MAX_WORKSPACE_DIMS, maxWorkspaceDims);
+    // -265, -94, -95, 265, 521.5, 129
+
+
+
+    HLdouble size[3];
+    size[0] = maxWorkspaceDims[3] - maxWorkspaceDims[0];
+    size[1] = maxWorkspaceDims[4] - maxWorkspaceDims[1];
+    size[2] = maxWorkspaceDims[5] - maxWorkspaceDims[2];
+    HLdouble center[3];
+    center[0] = maxWorkspaceDims[0] + size[0] / 2.0;
+    center[1] = maxWorkspaceDims[1] + size[1] / 2.0;
+    center[2] = maxWorkspaceDims[2] + size[2] / 2.0;
+
+
+    adjusted_workspace_dims_
+    HLdouble maxWorkspaceDims[6];
+    hlGetDoublev(HL_MAX_WORKSPACE_DIMS, maxWorkspaceDims);
+    adjusted_workspace_size_[0] = 2.25 * (maxWorkspaceDims[3] - maxWorkspaceDims[0]);
+    adjusted_workspace_size_[1] = maxWorkspaceDims[4] - maxWorkspaceDims[1];
+    adjusted_workspace_size_[2] = maxWorkspaceDims[5] - maxWorkspaceDims[2];
+
     CheckHapticError();
-
-    /*
-    // Generate id for the shape.
-    gSphereShapeId = hlGenShapes(1);
-
-
-    // AMBIENT EFFECT EXAMPLE
-
-    gFrictionId = hlGenEffects(1);
-    hlBeginFrame();
-    hlEffectd(HL_EFFECT_PROPERTY_GAIN, 0.05);
-    hlEffectd(HL_EFFECT_PROPERTY_MAGNITUDE, 0.1);
-    hlStartEffect(HL_EFFECT_FRICTION, gFrictionId);
-    hlEndFrame();
-
-    gLineShapeId = hlGenShapes(1);
-
-    HDdouble kStiffness;
-    hdGetDoublev(HD_NOMINAL_MAX_STIFFNESS, &kStiffness);
-
-    // We can get a good approximation of the snap distance to use by
-    // solving the following simple force formula:
-    // >  F = k * x  <
-    // F: Force in Newtons (N).
-    // k: Stiffness control coefficient (N/mm).
-    // x: Displacement (i.e. snap distance).
-    const double kLineShapeForce = 7.0;
-    gLineShapeSnapDistance = kLineShapeForce / kStiffness;
-    */
-    
-    hlTouchableFace(HL_FRONT);
-    
-    gSphereShapeId = hlGenShapes(1);
-    gLineShapeId = hlGenShapes(1);
     return true;
 }
 
-void Phantom::RegisterForceEffect(const std::string& effect_name, ForceEffect* effect) {
-    effects_[effect_name] = effect;
+void Phantom::RegisterForceEffect(ForceEffect* effect) {
+    effects_[effect->Name()] = effect;
 }
 
 
@@ -188,18 +191,48 @@ void Phantom::UpdateHapticWorkspace() {
     GLint viewport[4];
     glGetIntegerv(GL_VIEWPORT, viewport);
 
+
+    // For the IV/LAB Phantom Premium 1.5, the code below reports
+    //   size = 530, 615.5, 224
+    //   center = 0, 213.75, 17
+    // But, these are not very user friendly values.
+    // First, the center of the workspace is not (0,0,0).
+    // Second, this is a super conservative view of the usable workspace.  The device can
+    // typically generate good force feedback in a much larger volume.
+    
+    //HLdouble maxWorkspaceDims[6];
+    //hlGetDoublev(HL_MAX_WORKSPACE_DIMS, maxWorkspaceDims);
+    //HLdouble size[3];
+    //size[0] = maxWorkspaceDims[3] - maxWorkspaceDims[0];
+    //size[1] = maxWorkspaceDims[4] - maxWorkspaceDims[1];
+    //size[2] = maxWorkspaceDims[5] - maxWorkspaceDims[2];
+    //HLdouble center[3];
+    //center[0] = maxWorkspaceDims[0] + size[0] / 2.0;
+    //center[1] = maxWorkspaceDims[1] + size[1] / 2.0;
+    //center[2] = maxWorkspaceDims[2] + size[2] / 2.0;
+    
+    // For the Phantom Premium 1.5, the following values are much better
     HLdouble maxWorkspaceDims[6];
-    hlGetDoublev(HL_MAX_WORKSPACE_DIMS, maxWorkspaceDims);
+    // hlGetDoublev(HL_MAX_WORKSPACE_DIMS, maxWorkspaceDims);
+    // -265, -94, -95, 265, 521.5, 129
+    maxWorkspaceDims[0] = -600;
+    maxWorkspaceDims[1] = -94;
+    maxWorkspaceDims[2] = -95;
+
+    maxWorkspaceDims[3] = 600;
+    maxWorkspaceDims[4] = 521.5;
+    maxWorkspaceDims[5] = 495;
+
 
     HLdouble size[3];
     size[0] = maxWorkspaceDims[3] - maxWorkspaceDims[0];
     size[1] = maxWorkspaceDims[4] - maxWorkspaceDims[1];
     size[2] = maxWorkspaceDims[5] - maxWorkspaceDims[2];
-
     HLdouble center[3];
     center[0] = maxWorkspaceDims[0] + size[0] / 2.0;
     center[1] = maxWorkspaceDims[1] + size[1] / 2.0;
     center[2] = maxWorkspaceDims[2] + size[2] / 2.0;
+
 
     hlMatrixMode(HL_TOUCHWORKSPACE);
     hlLoadIdentity();
@@ -212,10 +245,6 @@ void Phantom::UpdateHapticWorkspace() {
     // This does some magic to map the haptic workspace to the graphics view volume.  It seems to work
     // well aside from the need to add the translation above.
     hluFitWorkspace(projection);
-
-    // Compute cursor scale to get a consistently sized cursor relative to screen space.
-    gCursorScale = hluScreenToModelScale(modelview, projection, viewport);
-    gCursorScale *= CURSOR_SIZE_PIXELS;
 }
 
 
@@ -227,79 +256,21 @@ void Phantom::PollForInput() {
     hlCheckEvents();
 }
 
-void Phantom::StopAllEffects() {
+void Phantom::Reset() {
     for (const auto &entry : effects_) {
         ForceEffect* effect = entry.second;
-        effect->OnStopEffect();
+        effect->Reset();
     }
 }
 
 
 
 void Phantom::DrawHaptics() {
-    
-    // CONTACT EXAMPLE
-
-    // Start a new haptic shape.  Use the feedback buffer to capture OpenGL
-    // geometry for haptic rendering.
-    hlBeginShape(HL_SHAPE_FEEDBACK_BUFFER, gSphereShapeId);
-    CheckHapticError();
-    hlTouchModel(HL_CONTACT);
-    // Set material properties for the shapes to be drawn.
-    hlMaterialf(HL_FRONT_AND_BACK, HL_STIFFNESS, 0.7f);
-    hlMaterialf(HL_FRONT_AND_BACK, HL_DAMPING, 0.1f);
-    hlMaterialf(HL_FRONT_AND_BACK, HL_STATIC_FRICTION, 0.2f);
-    hlMaterialf(HL_FRONT_AND_BACK, HL_DYNAMIC_FRICTION, 0.3f);
-    // Use OpenGL commands to create geometry.
-    glutSolidSphere(200, 32, 32);
-    // End the shape.
-    hlEndShape();
-    CheckHapticError();
-
-
-    // CONSTRAINT EXAMPLE
-
-    glPushMatrix();
-    hlBeginShape(HL_SHAPE_FEEDBACK_BUFFER, gLineShapeId);
-    CheckHapticError();
-    hlTouchModel(HL_CONSTRAINT);
-    hlTouchModelf(HL_SNAP_DISTANCE, gLineShapeSnapDistance);
-    hlMaterialf(HL_FRONT, HL_STIFFNESS, 0.2);
-    hlMaterialf(HL_FRONT, HL_STATIC_FRICTION, 0);
-    hlMaterialf(HL_FRONT, HL_DYNAMIC_FRICTION, 0);
-    drawLine();
-    hlEndShape();
-    glPopMatrix();
-    CheckHapticError();
-
     for (const auto& entry : effects_) {
         ForceEffect* effect = entry.second;
         effect->DrawHaptics();
-        CheckHapticError();
     }
-}
-
-
-void Phantom::OnStartForceEffect(VREvent* event) {
-    VREventString* e_start = dynamic_cast<VREventString*>(event);
-    std::string effect_name = e_start->get_data();
-    if (effects_.find(effect_name) == effects_.end()) {
-        std::cerr << "Phantom::OnStartForceEffect(): Warning, ignoring unknown effect: " << effect_name << std::endl;
-        return;
-    }
-    std::cout << "STARTING: " << effect_name << std::endl;
-    effects_[effect_name]->OnStartEffect();
-}
-
-void Phantom::OnStopForceEffect(VREvent* event) {
-    VREventString* e_stop = dynamic_cast<VREventString*>(event);
-    std::string effect_name = e_stop->get_data();
-    if (effects_.find(effect_name) == effects_.end()) {
-        std::cerr << "Phantom::OnStopForceEffect(): Warning, ignoring unknown effect: " << effect_name << std::endl;
-        return;
-    }
-    std::cout << "STOPPING: " << effect_name << std::endl;
-    effects_[effect_name]->OnStopEffect();
+    CheckHapticError();
 }
 
 
@@ -346,41 +317,25 @@ bool Phantom::CheckHapticError() {
 
 
 void Phantom::DrawGraphics() {
+    // Draw a simple cursor (code adapted from OpenHaptics examples)
 
-    static const double kCursorRadius = 0.5;
-    static const double kCursorHeight = 1.5;
-    static const int kCursorTess = 15;
-    HLdouble proxyxform[16];
+    // sizes in mm
+    static const double kCursorRadius = 8.0;
+    static const double kCursorHeight = 20.0;
 
-
-    GLUquadricObj* qobj = 0;
-
+    // Push state
     glPushAttrib(GL_CURRENT_BIT | GL_ENABLE_BIT | GL_LIGHTING_BIT);
     glPushMatrix();
 
-    if (!gCursorDisplayList)
-    {
-        gCursorDisplayList = glGenLists(1);
-        glNewList(gCursorDisplayList, GL_COMPILE);
-        qobj = gluNewQuadric();
-
-        gluCylinder(qobj, 0.0, kCursorRadius, kCursorHeight,
-            kCursorTess, kCursorTess);
-        glTranslated(0.0, 0.0, kCursorHeight);
-        gluCylinder(qobj, kCursorRadius, 0.0, kCursorHeight / 5.0,
-            kCursorTess, kCursorTess);
-
-        gluDeleteQuadric(qobj);
-        glEndList();
-    }
-
-    // Get the proxy transform in world coordinates.
+    // Get the proxy transform in world coordinates.'
+    HLdouble proxyxform[16];
     hlGetDoublev(HL_PROXY_TRANSFORM, proxyxform);
     glMultMatrixd(proxyxform);
 
     // Apply the local cursor scale factor.
-    glScaled(gCursorScale, gCursorScale, gCursorScale);
+    //glScaled(gCursorScale, gCursorScale, gCursorScale);
 
+    // Use change in color to signal whether the button is up/down
     glEnable(GL_COLOR_MATERIAL);
     HLboolean down;
     hlGetBooleanv(HL_BUTTON1_STATE, &down);
@@ -391,91 +346,42 @@ void Phantom::DrawGraphics() {
         glColor3f(0.0, 0.5, 1.0);
     }
 
-    glCallList(gCursorDisplayList);
+    // Draw a cone
+    GLUquadricObj* qobj = gluNewQuadric();
+    gluCylinder(qobj, 0.0, kCursorRadius, kCursorHeight, 15, 15);
+    // Draw a cap on the bottom of the cone
+    glTranslated(0.0, 0.0, kCursorHeight);
+    gluDisk(qobj, 0.0, kCursorRadius, 15, 1);
+    //gluCylinder(qobj, kCursorRadius, 0.0, kCursorHeight / 5.0, 15, 15);
+    gluDeleteQuadric(qobj);
 
+    // Restore state
     glDisable(GL_COLOR_MATERIAL);
     glPopMatrix();
     glPopAttrib();
     
     
-    
-
-    // DRAW HAPTIC CURSOR
-    /*
-    GLfloat mat_ambient_gray[] = { 0.5, 0.5, 0.5, 1.0 };
-    GLfloat mat_ambient_red[] = { 1.0, 0.0, 0.0, 1.0 };
-    GLfloat mat_specular[] = { 1.0, 1.0, 1.0, 1.0 };
-    GLfloat mat_shininess[] = { 50.0 };
-    glMaterialfv(GL_FRONT, GL_SPECULAR, mat_specular);
-    glMaterialfv(GL_FRONT, GL_SHININESS, mat_shininess);
-    glMaterialfv(GL_FRONT, GL_AMBIENT, mat_ambient_gray);
-
+    // Draw a light indication of the max workspace size as reported by openhaptics with 
+    // the change that they REALLY underestimate the usable horizontal space of the PHANToM 
+    // Premium devices.  We can more than double the X dimension and get a lot of nice
+    // usable space!  When client specify haptic effects, everything should work pretty
+    // well if the coordinates fall within these dimensions.
     glMatrixMode(GL_MODELVIEW);
     glPushMatrix();
-    glMultMatrixd(transform());
-
-
-    if (is_primary_btn_down()) {
-        glMaterialfv(GL_FRONT, GL_AMBIENT, mat_ambient_red);
+    glScaled(adjusted_workspace_size_[0], adjusted_workspace_size_[1], adjusted_workspace_size_[2]);
+    glDisable(GL_LIGHTING);
+    if (is_in_adjusted_workspace()) {
+        glColor3f(0.5, 0.5, 0.5);
     }
     else {
-        glMaterialfv(GL_FRONT, GL_AMBIENT, mat_ambient_gray);
+        glColor3f(0.8, 0.5, 0.5);
     }
-    glTranslated(0.0, 0.0, kCursorHeight / 5.0);
-
-    GLUquadricObj* qobj = gluNewQuadric();
-    gluCylinder(qobj, 0.0, kCursorRadius, kCursorHeight / 5.0, kCursorTess, kCursorTess);
-
-    glMaterialfv(GL_FRONT, GL_AMBIENT, mat_ambient_gray);
-    glTranslated(0.0, 0.0, kCursorHeight / 5.0);
-    gluCylinder(qobj, kCursorRadius, kCursorRadius, kCursorHeight * 4.0 / 5.0, kCursorTess, kCursorTess);
-
-    glTranslated(0.0, 0.0, kCursorHeight * 4.0 / 5.0);
-    gluDisk(qobj, 0.0, kCursorRadius, kCursorTess, 1);
-
-    glPopMatrix();
-
-
-    // shadow of the cursor
-    glDisable(GL_LIGHTING);
-    glPushMatrix();
-    glTranslatef(0.0f, -299.5f, 0.0f);
-    glScalef(1.0f, 0.0f, 1.0f);
-    glMultMatrixd(transform());
-    glColor3f(0.0f, 0.0f, 0.0f);
-    glTranslated(0.0, 0.0, kCursorHeight / 5.0);
-    gluCylinder(qobj, 0.0, kCursorRadius, kCursorHeight / 5.0, kCursorTess, kCursorTess);
-    glTranslated(0.0, 0.0, kCursorHeight / 5.0);
-    gluCylinder(qobj, kCursorRadius, kCursorRadius, kCursorHeight * 4.0 / 5.0, kCursorTess, kCursorTess);
-    gluDisk(qobj, 0.0, kCursorRadius, kCursorTess, 1);
-    glPopMatrix();
-    glEnable(GL_LIGHTING);
-
-    gluDeleteQuadric(qobj);
-    */
-    
-    
-    HLdouble maxWorkspaceDims[6];
-    hlGetDoublev(HL_MAX_WORKSPACE_DIMS, maxWorkspaceDims);
-    HLdouble size[3];
-    size[0] = maxWorkspaceDims[3] - maxWorkspaceDims[0];
-    size[1] = maxWorkspaceDims[4] - maxWorkspaceDims[1];
-    size[2] = maxWorkspaceDims[5] - maxWorkspaceDims[2];
-    HLdouble center[3];
-    center[0] = maxWorkspaceDims[0] + size[0] / 2.0;
-    center[1] = maxWorkspaceDims[1] + size[1] / 2.0;
-    center[2] = maxWorkspaceDims[2] + size[2] / 2.0;
-
-    glMatrixMode(GL_MODELVIEW);
-    glPushMatrix();
-    //glTranslated(-center[0], -center[1], -center[2]);
-    glScaled(size[0], size[1], size[2]);
-    glDisable(GL_LIGHTING);
     glutWireCube(1);
     glEnable(GL_LIGHTING);
     glPopMatrix();
-    
-        
+
+
+    // Ask each force effect draw itself
     for (const auto& entry : effects_) {
         ForceEffect* effect = entry.second;
         effect->DrawGraphics();

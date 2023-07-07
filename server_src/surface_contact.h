@@ -1,6 +1,6 @@
 
-#ifndef FORCE_SERVER_SURFACE_CONSTRAINT_H
-#define FORCE_SERVER_SURFACE_CONSTRAINT_H
+#ifndef FORCE_SERVER_SURFACE_CONTACT_H
+#define FORCE_SERVER_SURFACE_CONTACT_H
 
 #include "open_haptics.h"
 
@@ -10,14 +10,14 @@
 #include "force_effect.h"
 
 
-class SurfaceConstraint : public ForceEffect {
+class SurfaceContact : public ForceEffect {
 public:
-    SurfaceConstraint(EventMgr* event_mgr);
-    virtual ~SurfaceConstraint();
+    SurfaceContact(EventMgr* event_mgr);
+    virtual ~SurfaceContact();
 
-    const std::string name = "SurfaceConstraint";
+    const std::string name = "SurfaceContact";
     const std::string Name() const { return name; }
-    
+
     // start/stop
     void OnStartEffect(VREvent* e);
     void OnStopEffect(VREvent* e);
@@ -27,8 +27,6 @@ public:
     void OnDampingChange(VREvent* e);
     void OnStaticFrictionChange(VREvent* e);
     void OnDynamicFrictionChange(VREvent* e);
-    void OnSnapDistanceChange(VREvent* e);
-    void OnSnapForceChange(VREvent* e);
 
     // geometery
     void OnBeginGeometry(VREvent* e);
@@ -46,13 +44,13 @@ public:
 private:
     bool active_;
     HLuint shape_id_;
-    
+
     std::vector<hduVector3Df> verts_;
     std::vector<hduVector3Df> verts_tmp_buffer_;
-    
+
     std::vector<int> indices_;
     std::vector<int> indices_tmp_buffer_;
-    
+
     HLfloat stiffness_;
     HLfloat damping_;
     HLfloat static_friction_;

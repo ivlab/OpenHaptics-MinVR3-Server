@@ -1,10 +1,7 @@
 
 /* todo:
-- line, surf constraints following same style
-- surf contact following similar style
-- examples of each
-- remove tmp sphere from scene
-- reinstate workspace and cursor drawing
+- logic for ambient effects could be improved
+
 ..done..
 ..future..
 - flow/follow effect
@@ -16,6 +13,14 @@
 #include <thread>
 
 #include <minvr3.h>
+
+
+float clamp(float val, float low, float high) {
+    if (val < low) return low;
+    else if (val > high) return high;
+    else return val;
+}
+
 
 int main(int argc, char** argv) {
     
@@ -49,10 +54,11 @@ int main(int argc, char** argv) {
         pos[1] = 0;
         pos[2] = 0;
 
-        bool effects_on = false;
+        bool viscosity_on = false;
         MinVR3Net::SendVREvent(&server_fd, VREventFloat("ForceEffect/AmbientViscous/SetGain", 0.8));
         MinVR3Net::SendVREvent(&server_fd, VREventFloat("ForceEffect/AmbientViscous/SetMagnitudeCap", 1.0));
 
+        bool friction_on = false;
         MinVR3Net::SendVREvent(&server_fd, VREventFloat("ForceEffect/AmbientFriction/SetGain", 0.1));
         MinVR3Net::SendVREvent(&server_fd, VREventFloat("ForceEffect/AmbientFriction/SetMagnitudeCap", 0.1));
 
@@ -61,6 +67,65 @@ int main(int argc, char** argv) {
         MinVR3Net::SendVREvent(&server_fd, VREventFloat("ForceEffect/PointConstraint/SetStaticFriction", 0.2));
         MinVR3Net::SendVREvent(&server_fd, VREventFloat("ForceEffect/PointConstraint/SetDynamicFriction", 0.2));
         MinVR3Net::SendVREvent(&server_fd, VREventFloat("ForceEffect/PointConstraint/SetSnapDistance", 10.0));
+
+        // a set of parallel lines to demonstrate line constraints
+        MinVR3Net::SendVREvent(&server_fd, VREvent("ForceEffect/LineConstraint/BeginLines"));
+        float left = -400;
+        float right = -100;
+        float xinc = 50;
+        float top = 250;
+        float bottom = -250;
+        for (float x = left; x <= right; x += xinc) {
+            MinVR3Net::SendVREvent(&server_fd, VREventVector3("ForceEffect/LineConstraint/AddVertex", x, top, 0));
+            MinVR3Net::SendVREvent(&server_fd, VREventVector3("ForceEffect/LineConstraint/AddVertex", x, bottom, 0));
+        }
+        MinVR3Net::SendVREvent(&server_fd, VREvent("ForceEffect/LineConstraint/EndLines"));
+        MinVR3Net::SendVREvent(&server_fd, VREvent("ForceEffect/LineConstraint/Start"));
+
+
+        // a simple surface to demonstrate surface constraints
+        left = 100;
+        right = 400;
+        top = 210;
+        bottom = 20;
+        float back = -100;
+        float front = 100;
+        // signal start of mesh data
+        MinVR3Net::SendVREvent(&server_fd, VREvent("ForceEffect/SurfaceConstraint/BeginGeometry"));
+        // fill up vertex buffer
+        MinVR3Net::SendVREvent(&server_fd, VREventVector3("ForceEffect/SurfaceConstraint/AddVertex", left, top, back));     // v0
+        MinVR3Net::SendVREvent(&server_fd, VREventVector3("ForceEffect/SurfaceConstraint/AddVertex", left, bottom, front));  // v1
+        MinVR3Net::SendVREvent(&server_fd, VREventVector3("ForceEffect/SurfaceConstraint/AddVertex", right, bottom, front)); // v2
+        MinVR3Net::SendVREvent(&server_fd, VREventVector3("ForceEffect/SurfaceConstraint/AddVertex", right, top, back));    // v3
+        // fill up indices buffer
+        MinVR3Net::SendVREvent(&server_fd, VREventVector3("ForceEffect/SurfaceConstraint/AddIndices", 0, 1, 3));  // triangle 0 = v0, v1, v3
+        MinVR3Net::SendVREvent(&server_fd, VREventVector3("ForceEffect/SurfaceConstraint/AddIndices", 3, 1, 2));  // triangle 1 = v3, v1, v2
+        // signal end of mesh data
+        MinVR3Net::SendVREvent(&server_fd, VREvent("ForceEffect/SurfaceConstraint/EndGeometry"));
+        // start applying forces
+        MinVR3Net::SendVREvent(&server_fd, VREvent("ForceEffect/SurfaceConstraint/Start"));
+
+        // a simple surface to demonstrate surface contact
+        left = 100;
+        right = 400;
+        top = -20;
+        bottom = -210;
+        back = -100;
+        front = 100;
+        // signal start of mesh data
+        MinVR3Net::SendVREvent(&server_fd, VREvent("ForceEffect/SurfaceContact/BeginGeometry"));
+        // fill up vertex buffer
+        MinVR3Net::SendVREvent(&server_fd, VREventVector3("ForceEffect/SurfaceContact/AddVertex", left, top, back));     // v0
+        MinVR3Net::SendVREvent(&server_fd, VREventVector3("ForceEffect/SurfaceContact/AddVertex", left, bottom, front));  // v1
+        MinVR3Net::SendVREvent(&server_fd, VREventVector3("ForceEffect/SurfaceContact/AddVertex", right, bottom, front)); // v2
+        MinVR3Net::SendVREvent(&server_fd, VREventVector3("ForceEffect/SurfaceContact/AddVertex", right, top, back));    // v3
+        // fill up indices buffer
+        MinVR3Net::SendVREvent(&server_fd, VREventVector3("ForceEffect/SurfaceContact/AddIndices", 0, 1, 3));  // triangle 0 = v0, v1, v3
+        MinVR3Net::SendVREvent(&server_fd, VREventVector3("ForceEffect/SurfaceContact/AddIndices", 3, 1, 2));  // triangle 1 = v3, v1, v2
+        // signal end of mesh data
+        MinVR3Net::SendVREvent(&server_fd, VREvent("ForceEffect/SurfaceContact/EndGeometry"));
+        // start applying forces
+        MinVR3Net::SendVREvent(&server_fd, VREvent("ForceEffect/SurfaceContact/Start"));
 
         bool done = false;
         while (!done) {
@@ -71,27 +136,37 @@ int main(int argc, char** argv) {
                     pos[0] = epos->x();
                     pos[1] = epos->y();
                     pos[2] = epos->z();
-                    std::cout << epos->x() << " " << epos->y() << " " << epos->z() << std::endl;
+                   
+                    std::cout << "Stylus pos: " << epos->x() << " " << epos->y() << " " << epos->z() << std::endl;
                     
-                    if ((epos->y() < 0) && (!effects_on)) {
+                    // apply ambient viscosity whenever the stylus is above the Y = 0mm plane, turn off when below
+                    if ((epos->y() > 0) && (!viscosity_on)) {
                         MinVR3Net::SendVREvent(&server_fd, VREvent("ForceEffect/AmbientViscous/Start"));
-                        MinVR3Net::SendVREvent(&server_fd, VREvent("ForceEffect/AmbientFriction/Start"));
-                        effects_on = true;
+                        viscosity_on = true;
                     }
-                    else if ((epos->y() > 0) && (effects_on)) {
+                    else if ((epos->y() < 0) && (viscosity_on)) {
                         MinVR3Net::SendVREvent(&server_fd, VREvent("ForceEffect/AmbientViscous/Stop"));
-                        MinVR3Net::SendVREvent(&server_fd, VREvent("ForceEffect/AmbientViscous/Stop"));
-                        effects_on = false;
+                        viscosity_on = false;
                     }
 
-                    if (epos->x() < 0) {
-                        MinVR3Net::SendVREvent(&server_fd, VREventFloat("ForceEffect/AmbientViscous/SetGain", 0.3));
+                    // apply ambient friction whenever the stylus is below the Y = 0mm plane, turn off when above
+                    if ((epos->y() < 0) && (!friction_on)) {
+                        MinVR3Net::SendVREvent(&server_fd, VREvent("ForceEffect/AmbientFriction/Start"));
+                        friction_on = true;
                     }
-                    else {
-                        MinVR3Net::SendVREvent(&server_fd, VREventFloat("ForceEffect/AmbientViscous/SetGain", 0.9));
+                    else if ((epos->y() > 0) && (friction_on)) {
+                        MinVR3Net::SendVREvent(&server_fd, VREvent("ForceEffect/AmbientFriction/Stop"));
+                        friction_on = false;
                     }
+
+                    // change the gain of both ambient effects so they increase left to right
+                    // should feel little or no effect when moving the stylus on the left and big effect on the right
+                    float alpha = clamp((epos->x() + 300.0f) / 600.0f, 0.0f, 1.0f);
+                    MinVR3Net::SendVREvent(&server_fd, VREventFloat("ForceEffect/AmbientViscous/SetGain", alpha));
+                    MinVR3Net::SendVREvent(&server_fd, VREventFloat("ForceEffect/AmbientFriction/SetGain", alpha));
                 }
                 else if (e->get_name() == "Phantom/Primary DOWN") {
+                    
                     MinVR3Net::SendVREvent(&server_fd, VREvent("ForceEffect/PointConstraint/BeginPoints"));
                     MinVR3Net::SendVREvent(&server_fd, VREventVector3("ForceEffect/PointConstraint/AddVertex", pos[0], pos[1], pos[2]));
                     MinVR3Net::SendVREvent(&server_fd, VREvent("ForceEffect/PointConstraint/EndPoints"));

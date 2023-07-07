@@ -19,7 +19,7 @@
 #include "phantom.h"
 #include "point_constraint.h"
 #include "surface_constraint.h"
-#include "touch_surface.h"
+#include "surface_contact.h"
 
 
 // can be adjusted via command line options
@@ -34,9 +34,12 @@ SOCKET client_fd = INVALID_SOCKET;
 
 // force effects -- designed so that more can be easily added here
 void registerForceEffects() {
-    phantom->RegisterForceEffect("AmbientFriction", new AmbientFriction(event_mgr));
-    phantom->RegisterForceEffect("AmbientViscous", new AmbientViscous(event_mgr));
-    phantom->RegisterForceEffect("PointConstraint", new PointConstraint(event_mgr));
+    phantom->RegisterForceEffect(new AmbientFriction(event_mgr));
+    phantom->RegisterForceEffect(new AmbientViscous(event_mgr));
+    phantom->RegisterForceEffect(new PointConstraint(event_mgr));
+    phantom->RegisterForceEffect(new LineConstraint(event_mgr));
+    phantom->RegisterForceEffect(new SurfaceConstraint(event_mgr));
+    phantom->RegisterForceEffect(new SurfaceContact(event_mgr));
 }
 
 
@@ -79,7 +82,7 @@ int main(int argc, char* argv[])
     
     glutInit(&argc, argv);
     glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGB | GLUT_DEPTH);
-    glutInitWindowSize(500, 500);
+    glutInitWindowSize(1000, 700);
     glutCreateWindow("Force Server");
 
     // Set glut callback functions.
@@ -174,12 +177,12 @@ void glutReshape(int width, int height) {
     // default units (mm).  The workspace is a non-uniform box.  The x dimension is the largest
     // and ranges from about -300mm to +300mm.  This view volume will include at least a box of
     // this size in all 3 dimensions.
-    hduVector3Dd cam_pos(0, 0, 1000);
+    hduVector3Dd cam_pos(0, 0, 900);
     hduVector3Dd origin(0, 0, 0);
     hduVector3Dd up(0, 1, 0);
-    double near_dist = 500;
-    double far_dist = 1500;
-    double fov = 40;
+    double near_dist = 1;
+    double far_dist = cam_pos[2] + 400;
+    double fov = 60;
     double aspect = (double)width / height;
 
     
@@ -203,9 +206,9 @@ void glutReshape(int width, int height) {
 
 
 void initGraphics() {
-    static const GLfloat light_model_ambient[] = { 0.3f, 0.3f, 0.3f, 1.0f };
+    static const GLfloat light_model_ambient[] = { 0.5f, 0.5f, 0.5f, 1.0f };
     static const GLfloat light0_diffuse[] = { 0.9f, 0.9f, 0.9f, 0.9f };
-    static const GLfloat light0_direction[] = { 0.0f, -0.4f, 1.0f, 0.0f };
+    static const GLfloat light0_direction[] = { 0.0f, 1.0f, 1.0f, 0.0f };
 
     // Enable depth buffering for hidden surface removal.
     glDepthFunc(GL_LEQUAL);
@@ -219,6 +222,7 @@ void initGraphics() {
     glEnable(GL_LIGHTING);
     glEnable(GL_NORMALIZE);
     glShadeModel(GL_SMOOTH);
+    glEnable(GL_COLOR_MATERIAL);
 
     // Setup lighting model.
     glLightModeli(GL_LIGHT_MODEL_LOCAL_VIEWER, GL_FALSE);
@@ -237,7 +241,7 @@ void drawGraphics() {
     phantom->DrawGraphics();
     
     // draw any other elements of the scene...
-    glutSolidSphere(200, 32, 32);
+    //glutSolidSphere(200, 32, 32);
 }
 
 void shutdownGraphics() {
@@ -259,7 +263,7 @@ void readFromClient() {
     if (MinVR3Net::IsReadyToRead(&listener_fd)) {
         SOCKET new_client_fd;
         if (MinVR3Net::TryAcceptConnection(listener_fd, &new_client_fd)) {
-            phantom->StopAllEffects();
+            phantom->Reset();
             client_fd = new_client_fd;
             //std::cout << "New Connection" << std::endl;
         }

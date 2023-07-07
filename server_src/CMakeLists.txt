@@ -11,7 +11,7 @@ set (SOURCEFILES
   server_src/line_constraint.cpp
   server_src/point_constraint.cpp
   server_src/surface_constraint.cpp
-  server_src/touch_surface.cpp
+  server_src/surface_contact.cpp
   server_src/main.cpp
   server_src/phantom.cpp
 )
@@ -26,7 +26,7 @@ set (HEADERFILES
   server_src/open_haptics.h
   server_src/point_constraint.h
   server_src/surface_constraint.h
-  server_src/touch_surface.h
+  server_src/surface_contact.h
   server_src/phantom.h
 )
 

@@ -60,7 +60,14 @@ void LineConstraint::OnStopEffect(VREvent* e) {
     active_ = false;
 }
 
-void LineConstraint::OnBeginPoints(VREvent* e) {
+void LineConstraint::Reset() {
+    verts_.clear();
+    verts_tmp_buffer_.clear();
+    active_ = false;
+}
+
+
+void LineConstraint::OnBeginLines(VREvent* e) {
     // add to a tmp buffer and only "commit" the vertices to the points list used in the
     // haptic draw method after receiving ALL of the points.
     verts_tmp_buffer_.clear();
@@ -74,7 +81,7 @@ void LineConstraint::OnAddVertex(VREvent* e) {
     }
 }
 
-void LineConstraint::OnEndPoints(VREvent* e) {
+void LineConstraint::OnEndLines(VREvent* e) {
     verts_ = verts_tmp_buffer_;
 }
 
@@ -163,12 +170,13 @@ void LineConstraint::DrawHaptics() {
 
 void LineConstraint::DrawGraphics() {
     if ((active_) && (!verts_.empty())) {
-        glColor3f(1.0, 1.0, 1.0);
-        glPointSize(5.0);
+        glDisable(GL_LIGHTING);
+        glColor3f(0.3, 0.3, 1.0);
         glBegin(GL_LINES);
         for (int i=0; i<verts_.size(); i++) {
             glVertex3f(verts_[i][0], verts_[i][1], verts_[i][2]);
         }
         glEnd();
+        glEnable(GL_LIGHTING);
     }
 }
