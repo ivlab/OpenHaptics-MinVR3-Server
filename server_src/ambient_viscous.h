@@ -21,9 +21,8 @@ public:
     const std::string name = "AmbientViscous";
     const std::string Name() const { return name; }
         
-    void Init();
-    void OnStartEffect();
-    void OnStopEffect();
+    void OnStartEffect(VREvent* e);
+    void OnStopEffect(VREvent* e);
 
     void OnGainChange(VREvent* e);
     void OnMagnitudeCapChange(VREvent* e);

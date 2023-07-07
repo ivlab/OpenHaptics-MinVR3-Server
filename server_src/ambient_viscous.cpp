@@ -9,11 +9,17 @@
 AmbientViscous::AmbientViscous(EventMgr* event_mgr) : gain_(0.8), magnitude_cap_(1.0), effect_id_(0),
     start_this_frame_(false), stop_this_frame_(false), update_this_frame_(false), active_(false)
 {
-    std::string gain_event_name = ForceMessages::get_force_effect_param_event_name(Name(), "Gain");
-    event_mgr->AddListener(gain_event_name, this, &AmbientViscous::OnGainChange);
+    std::string event_name = ForceMessages::get_force_effect_prefix() + Name() + "/Start";
+    event_mgr->AddListener(event_name, this, &AmbientViscous::OnStartEffect);
+    
+    event_name = ForceMessages::get_force_effect_prefix() + Name() + "/Stop";
+    event_mgr->AddListener(event_name, this, &AmbientViscous::OnStopEffect);
+    
+    event_name = ForceMessages::get_force_effect_prefix() + Name() + "/SetGain";
+    event_mgr->AddListener(event_name, this, &AmbientViscous::OnGainChange);
 
-    std::string mag_event_name = ForceMessages::get_force_effect_param_event_name(Name(), "MagnitudeCap");
-    event_mgr->AddListener(mag_event_name, this, &AmbientViscous::OnMagnitudeCapChange);
+    event_name = ForceMessages::get_force_effect_prefix() + Name() + "/SetMagnitudeCap";
+    event_mgr->AddListener(event_name, this, &AmbientViscous::OnMagnitudeCapChange);
 }
 
 AmbientViscous::~AmbientViscous() {
@@ -38,7 +44,7 @@ void AmbientViscous::OnMagnitudeCapChange(VREvent* e) {
     }
 }
 
-void AmbientViscous::OnStartEffect() {
+void AmbientViscous::OnStartEffect(VREvent* e) {
     if (stop_this_frame_) {
         // if stop this frame was already set, then this is a really fast stop/start sequence within a single frame!
         // just do nothing in this case
@@ -50,7 +56,7 @@ void AmbientViscous::OnStartEffect() {
     }
 }
 
-void AmbientViscous::OnStopEffect() {
+void AmbientViscous::OnStopEffect(VREvent* e) {
     if (start_this_frame_) {
         // if start this frame was already set, then this is a really fast start/stop sequence within a single frame!
         // just do nothing in this case

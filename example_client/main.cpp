@@ -50,17 +50,17 @@ int main(int argc, char** argv) {
         pos[2] = 0;
 
         bool effects_on = false;
-        MinVR3Net::SendVREvent(&server_fd, VREventFloat("ForceEffect/Param/AmbientViscous/Gain", 0.8));
-        MinVR3Net::SendVREvent(&server_fd, VREventFloat("ForceEffect/Param/AmbientViscous/MagnitudeCap", 1.0));
+        MinVR3Net::SendVREvent(&server_fd, VREventFloat("ForceEffect/AmbientViscous/SetGain", 0.8));
+        MinVR3Net::SendVREvent(&server_fd, VREventFloat("ForceEffect/AmbientViscous/SetMagnitudeCap", 1.0));
 
-        MinVR3Net::SendVREvent(&server_fd, VREventFloat("ForceEffect/Param/AmbientFriction/Gain", 0.1));
-        MinVR3Net::SendVREvent(&server_fd, VREventFloat("ForceEffect/Param/AmbientFriction/MagnitudeCap", 0.1));
+        MinVR3Net::SendVREvent(&server_fd, VREventFloat("ForceEffect/AmbientFriction/SetGain", 0.1));
+        MinVR3Net::SendVREvent(&server_fd, VREventFloat("ForceEffect/AmbientFriction/SetMagnitudeCap", 0.1));
 
-        MinVR3Net::SendVREvent(&server_fd, VREventFloat("ForceEffect/Param/PointConstraint/Stiffness", 0.8));
-        MinVR3Net::SendVREvent(&server_fd, VREventFloat("ForceEffect/Param/PointConstraint/Damping", 0.2));
-        MinVR3Net::SendVREvent(&server_fd, VREventFloat("ForceEffect/Param/PointConstraint/StaticFriction", 0.2));
-        MinVR3Net::SendVREvent(&server_fd, VREventFloat("ForceEffect/Param/PointConstraint/DynamicFriction", 0.2));
-        MinVR3Net::SendVREvent(&server_fd, VREventFloat("ForceEffect/Param/PointConstraint/SnapDistance", 10.0));
+        MinVR3Net::SendVREvent(&server_fd, VREventFloat("ForceEffect/PointConstraint/SetStiffness", 0.8));
+        MinVR3Net::SendVREvent(&server_fd, VREventFloat("ForceEffect/PointConstraint/SetDamping", 0.2));
+        MinVR3Net::SendVREvent(&server_fd, VREventFloat("ForceEffect/PointConstraint/SetStaticFriction", 0.2));
+        MinVR3Net::SendVREvent(&server_fd, VREventFloat("ForceEffect/PointConstraint/SetDynamicFriction", 0.2));
+        MinVR3Net::SendVREvent(&server_fd, VREventFloat("ForceEffect/PointConstraint/SetSnapDistance", 10.0));
 
         bool done = false;
         while (!done) {
@@ -74,29 +74,31 @@ int main(int argc, char** argv) {
                     std::cout << epos->x() << " " << epos->y() << " " << epos->z() << std::endl;
                     
                     if ((epos->y() < 0) && (!effects_on)) {
-                        MinVR3Net::SendVREvent(&server_fd, VREventString("ForceEffect/Start", "AmbientViscous"));
-                        MinVR3Net::SendVREvent(&server_fd, VREventString("ForceEffect/Start", "AmbientFriction"));
+                        MinVR3Net::SendVREvent(&server_fd, VREvent("ForceEffect/AmbientViscous/Start"));
+                        MinVR3Net::SendVREvent(&server_fd, VREvent("ForceEffect/AmbientFriction/Start"));
                         effects_on = true;
                     }
                     else if ((epos->y() > 0) && (effects_on)) {
-                        MinVR3Net::SendVREvent(&server_fd, VREventString("ForceEffect/Stop", "AmbientViscous"));
-                        MinVR3Net::SendVREvent(&server_fd, VREventString("ForceEffect/Stop", "AmbientFriction"));
+                        MinVR3Net::SendVREvent(&server_fd, VREvent("ForceEffect/AmbientViscous/Stop"));
+                        MinVR3Net::SendVREvent(&server_fd, VREvent("ForceEffect/AmbientViscous/Stop"));
                         effects_on = false;
                     }
 
                     if (epos->x() < 0) {
-                        MinVR3Net::SendVREvent(&server_fd, VREventFloat("ForceEffect/Param/AmbientViscous/Gain", 0.3));
+                        MinVR3Net::SendVREvent(&server_fd, VREventFloat("ForceEffect/AmbientViscous/SetGain", 0.3));
                     }
                     else {
-                        MinVR3Net::SendVREvent(&server_fd, VREventFloat("ForceEffect/Param/AmbientViscous/Gain", 0.9));
+                        MinVR3Net::SendVREvent(&server_fd, VREventFloat("ForceEffect/AmbientViscous/SetGain", 0.9));
                     }
                 }
                 else if (e->get_name() == "Phantom/Primary DOWN") {
-                    MinVR3Net::SendVREvent(&server_fd, VREventVector3("ForceEffect/Param/PointConstraint/Point", pos[0], pos[1], pos[2]));
-                    MinVR3Net::SendVREvent(&server_fd, VREventString("ForceEffect/Start", "PointConstraint"));
+                    MinVR3Net::SendVREvent(&server_fd, VREvent("ForceEffect/PointConstraint/BeginPoints"));
+                    MinVR3Net::SendVREvent(&server_fd, VREventVector3("ForceEffect/PointConstraint/AddVertex", pos[0], pos[1], pos[2]));
+                    MinVR3Net::SendVREvent(&server_fd, VREvent("ForceEffect/PointConstraint/EndPoints"));
+                    MinVR3Net::SendVREvent(&server_fd, VREvent("ForceEffect/PointConstraint/Start"));
                 }
                 else if (e->get_name() == "Phantom/Primary UP") {
-                    MinVR3Net::SendVREvent(&server_fd, VREventString("ForceEffect/Stop", "PointConstraint"));
+                    MinVR3Net::SendVREvent(&server_fd, VREvent("ForceEffect/PointConstraint/Stop"));
                 }
 
                 //std::cout << *e << std::endl;

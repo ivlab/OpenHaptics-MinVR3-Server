@@ -18,18 +18,25 @@ public:
 
     const std::string name = "PointConstraint";
     const std::string Name() const { return name; }
-        
-    void OnStartEffect();
-    void OnStopEffect();
+    
+    // start/stop
+    void OnStartEffect(VREvent* e);
+    void OnStopEffect(VREvent* e);
 
-    void OnPointChange(VREvent* e);
+    // force parameters
     void OnStiffnessChange(VREvent* e);
     void OnDampingChange(VREvent* e);
     void OnStaticFrictionChange(VREvent* e);
     void OnDynamicFrictionChange(VREvent* e);
     void OnSnapDistanceChange(VREvent* e);
     void OnSnapForceChange(VREvent* e);
-    
+
+    // geometery
+    void OnBeginPoints(VREvent* e);
+    void OnAddVertex(VREvent* e);
+    void OnEndPoints(VREvent* e);
+
+    // called by Phantom once per frame
     void DrawHaptics();
     void DrawGraphics();
 
@@ -37,7 +44,8 @@ private:
     bool active_;
     HLuint shape_id_;
     
-    HLfloat point_[3];
+    std::vector<hduVector3Df> points_;
+    std::vector<hduVector3Df> points_tmp_buffer_;
     HLfloat stiffness_;
     HLfloat damping_;
     HLfloat static_friction_;

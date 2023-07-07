@@ -7,11 +7,17 @@
 AmbientFriction::AmbientFriction(EventMgr* event_mgr) : gain_(0.15), magnitude_cap_(0.75), effect_id_(0), 
     start_this_frame_(false), stop_this_frame_(false), update_this_frame_(false), active_(false) 
 {
-    std::string gain_event_name = ForceMessages::get_force_effect_param_event_name(Name(), "Gain");
-    event_mgr->AddListener(gain_event_name, this, &AmbientFriction::OnGainChange);
+    std::string event_name = ForceMessages::get_force_effect_prefix() + Name() + "/Start";
+    event_mgr->AddListener(event_name, this, &AmbientFriction::OnStartEffect);
+    
+    event_name = ForceMessages::get_force_effect_prefix() + Name() + "/Stop";
+    event_mgr->AddListener(event_name, this, &AmbientFriction::OnStopEffect);
+    
+    event_name = ForceMessages::get_force_effect_prefix() + Name() + "/SetGain";
+    event_mgr->AddListener(event_name, this, &AmbientFriction::OnGainChange);
 
-    std::string mag_event_name = ForceMessages::get_force_effect_param_event_name(Name(), "MagnitudeCap");
-    event_mgr->AddListener(mag_event_name, this, &AmbientFriction::OnMagnitudeCapChange);
+    event_name = ForceMessages::get_force_effect_prefix() + Name() + "/SetMagnitudeCap";
+    event_mgr->AddListener(event_name, this, &AmbientFriction::OnMagnitudeCapChange);
 }
 
 AmbientFriction::~AmbientFriction() {
@@ -37,7 +43,7 @@ void AmbientFriction::OnMagnitudeCapChange(VREvent* e) {
 }
 
 
-void AmbientFriction::OnStartEffect() {
+void AmbientFriction::OnStartEffect(VREvent* e) {
     if (stop_this_frame_) {
         // if stop this frame was already set, then this is a really fast stop/start sequence within a single frame!
         // just do nothing in this case
@@ -49,7 +55,7 @@ void AmbientFriction::OnStartEffect() {
     }
 }
 
-void AmbientFriction::OnStopEffect() {
+void AmbientFriction::OnStopEffect(VREvent* e) {
     if (start_this_frame_) {
         // if start this frame was already set, then this is a really fast start/stop sequence within a single frame!
         // just do nothing in this case
