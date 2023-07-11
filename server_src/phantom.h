@@ -22,6 +22,10 @@ public:
     void PollForInput();    
     void Reset();
 
+    void OnWorldToWorkspaceTranslationUpdate(VREvent* e);
+    void OnWorldToWorkspaceRotationUpdate(VREvent* e);
+    void OnWorldToWorkspaceScaleUpdate(VREvent* e);
+
     void BeginHapticFrame();
     void DrawHaptics();
     void EndHapticFrame();
@@ -45,15 +49,25 @@ public:
     bool is_primary_btn_down();
     bool is_in_custom_workspace();
     
+    hduMatrix get_world_to_custom_workspace_matrix();
+
 protected:
     EventMgr* event_mgr_;
     HHD hd_device_;
     HHLRC hl_context_;
 
+    // user specified transformation from the world coordinates used by all of the haptic
+    // effects into custom workspace coordinates
+    hduVector3Dd world_to_custom_workspace_translation_;
+    hduQuaternion world_to_custom_workspace_rotation_;
+    hduVector3Dd world_to_custom_workspace_scale_;
+
+    // usable space of the phantom device, in device coordinates (mm)
     HDdouble custom_workspace_dims_[6];
     HDdouble custom_workspace_center_[3];
     HDdouble custom_workspace_size_[3];
 
+    // cached stylus state -- updated at beginning of each frame
     HDdouble transform_[16];
     HDdouble position_[3];
     HDdouble rotation_[4];

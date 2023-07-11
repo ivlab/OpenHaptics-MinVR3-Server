@@ -33,6 +33,18 @@ void HLCALLBACK MotionCallback(HLenum event, HLuint object, HLenum thread, HLcac
 
 
 Phantom::Phantom(EventMgr* event_mgr) : hd_device_(HD_INVALID_HANDLE), hl_context_(0), event_mgr_(event_mgr), primary_down_(false) {
+    world_to_custom_workspace_translation_ = hduVector3Dd(0, 0, 0);
+    world_to_custom_workspace_rotation_ = hduQuaternion();
+    world_to_custom_workspace_scale_ = hduVector3Dd(1, 1, 1);
+
+    std::string event_name = ForceMessages::get_world_to_workspace_translation_event_name();
+    event_mgr->AddListener(event_name, this, &Phantom::OnWorldToWorkspaceTranslationUpdate);
+
+    event_name = ForceMessages::get_world_to_workspace_rotation_event_name();
+    event_mgr->AddListener(event_name, this, &Phantom::OnWorldToWorkspaceRotationUpdate);
+
+    event_name = ForceMessages::get_world_to_workspace_scale_event_name();
+    event_mgr->AddListener(event_name, this, &Phantom::OnWorldToWorkspaceScaleUpdate);
 }
 
 Phantom::~Phantom() {
@@ -90,6 +102,35 @@ double* Phantom::custom_workspace_size() {
 double* Phantom::custom_workspace_center() {
     return (double*)custom_workspace_center_;
 }
+
+void Phantom::OnWorldToWorkspaceTranslationUpdate(VREvent* e) {
+    VREventVector3* e_vec3 = dynamic_cast<VREventVector3*>(e);
+    if (e_vec3 != NULL) { // should always pass
+        world_to_custom_workspace_translation_[0] = e_vec3->x();
+        world_to_custom_workspace_translation_[1] = e_vec3->y();
+        world_to_custom_workspace_translation_[2] = e_vec3->z();
+    }
+}
+
+void Phantom::OnWorldToWorkspaceRotationUpdate(VREvent* e) {
+    VREventQuaternion* e_quat = dynamic_cast<VREventQuaternion*>(e);
+    if (e_quat != NULL) { // should always pass
+        world_to_custom_workspace_rotation_[0] = e_quat->x();
+        world_to_custom_workspace_rotation_[1] = e_quat->y();
+        world_to_custom_workspace_rotation_[2] = e_quat->z();
+        world_to_custom_workspace_rotation_[3] = e_quat->w();
+    }
+}
+
+void Phantom::OnWorldToWorkspaceScaleUpdate(VREvent* e) {
+    VREventVector3* e_vec3 = dynamic_cast<VREventVector3*>(e);
+    if (e_vec3 != NULL) { // should always pass
+        world_to_custom_workspace_scale_[0] = e_vec3->x();
+        world_to_custom_workspace_scale_[1] = e_vec3->y();
+        world_to_custom_workspace_scale_[2] = e_vec3->z();
+    }
+}
+
 
 bool Phantom::Init(const std::string &device_name) {
     HDErrorInfo error;
@@ -165,10 +206,20 @@ void Phantom::BeginHapticFrame() {
 
     hlMatrixMode(HL_TOUCHWORKSPACE);
     hlLoadIdentity();
-    // Not sure why the origin of the Phantom's workspace is not at the center of the workspace box.
-    // This translation has the effect of placing the origin (0,0,0) at the center of the workable space
-    // of the phantom.  So haptic shapes rendered at (0,0,0) are actually in the middle of the workspace.
+
+    // This centering transformation converts from the "custom workspace" coordinates defined in this class
+    // to the raw device coordinates of the phantom.  The transformation is just a simple translation so
+    // that (0,0,0) is custom workspace coordinates is located at the center of the usable space of the
+    // device.  For some reason, this is not the case by default.
     hlTranslated(custom_workspace_center()[0], custom_workspace_center()[1], custom_workspace_center()[2]);
+}
+
+hduMatrix TRS(hduVector3Dd t, hduQuaternion r, hduVector3Dd s) {
+    hduMatrix T, R, S;
+    T = hduMatrix::createTranslation(t);
+    r.toRotationMatrix(R);
+    S = hduMatrix::createScale(s);
+    return T * R * S;
 }
 
 void Phantom::PollForInput() {
@@ -178,10 +229,35 @@ void Phantom::PollForInput() {
     // cache latest values at the beginning of each frame
     hlGetBooleanv(HL_BUTTON1_STATE, &primary_down_);
 
-    hlGetDoublev(HL_PROXY_POSITION, position_);
-    hlGetDoublev(HL_PROXY_ROTATION, rotation_);
-    hlGetDoublev(HL_PROXY_TRANSFORM, transform_);
-    //std::cout << position_[0] << " " << position_[1] << " " << position_[2] << std::endl;
+
+    /*
+      working on coordinate spaces here...
+
+    HLdouble pos_cw[3];
+    HLdouble rot_cw[4];
+    HLdouble mat_cw[16];
+
+    hlGetDoublev(HL_PROXY_POSITION, pos_cw);
+    hlGetDoublev(HL_PROXY_ROTATION, rot_cw);
+    hlGetDoublev(HL_PROXY_TRANSFORM, mat_cw);
+    //std::cout << pos_custom_workspace[0] << " " << pos_custom_workspace[1] << " " << pos_custom_workspace[2] << std::endl;
+
+    hduMatrix w2cw = get_world_to_custom_workspace_matrix();
+    hduMatrix cw2w = w2cw.getInverse();
+
+    hduVector3Dd pos_w;
+    cw2w.multMatrixVec(hduVector3Dd(pos_cw), pos_w);
+
+    hduMatrix rot_cw_as_mat;
+    hduQuaternion(rot_cw).toRotationMatrix(rot_cw_as_mat);
+    cw2w_rot = rot_cw_as_mat.getInverse();
+
+
+    hduQuaternion cw2w_rot = world_to_custom_workspace_rotation_;
+    cw2w_rot.inverse();
+
+    hduQuaternion rot_world = cw2w_rot. * rot_custom_workspace;
+    */
 }
 
 void Phantom::Reset() {
@@ -191,13 +267,27 @@ void Phantom::Reset() {
     }
 }
 
-
+hduMatrix Phantom::get_world_to_custom_workspace_matrix() {
+    // build world to custom workspace matrix
+    hduMatrix T, R, S;
+    T = hduMatrix::createTranslation(world_to_custom_workspace_translation_);
+    world_to_custom_workspace_rotation_.toRotationMatrix(R);
+    S = hduMatrix::createScale(world_to_custom_workspace_scale_);
+    return T * R * S;
+}
 
 void Phantom::DrawHaptics() {
+    hlMatrixMode(HL_TOUCHWORKSPACE);
+    hlPushMatrix();
+    hduMatrix w2cw = get_world_to_custom_workspace_matrix();
+    hlMultMatrixd(w2cw);
+
     for (const auto& entry : effects_) {
         ForceEffect* effect = entry.second;
         effect->DrawHaptics();
     }
+
+    hlPopMatrix(); // world_to_custom_workspace
     CheckHapticError();
 }
 
@@ -255,7 +345,7 @@ void Phantom::DrawGraphics() {
     glPushAttrib(GL_CURRENT_BIT | GL_ENABLE_BIT | GL_LIGHTING_BIT);
     glPushMatrix();
 
-    // Get the proxy transform in world coordinates.'
+    // Get the proxy transform
     HLdouble proxyxform[16];
     hlGetDoublev(HL_PROXY_TRANSFORM, proxyxform);
     glMultMatrixd(proxyxform);
@@ -305,9 +395,17 @@ void Phantom::DrawGraphics() {
     glPopMatrix();
 
 
-    // Ask each force effect draw itself
+    // Ask each force effect draw itself using the world_to_custom_workspace transform
+    glMatrixMode(GL_MODELVIEW);
+    glPushMatrix();
+    hduMatrix w2cw = get_world_to_custom_workspace_matrix();
+    glMultMatrixd(w2cw);
+
+
     for (const auto& entry : effects_) {
         ForceEffect* effect = entry.second;
         effect->DrawGraphics();
     }
+
+    glPopMatrix(); // world_to_custom_workspace
 }

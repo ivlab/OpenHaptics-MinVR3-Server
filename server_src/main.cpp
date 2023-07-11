@@ -141,18 +141,34 @@ void glutDisplay() {
     event_mgr->ProcessQueue();
     phantom->CheckHapticError();
 
-    // update haptic rendering with the latest shape/effect info
 
+    // HAPTICS RENDERING PASS
+
+    // OpenHaptics reads the GL modelview matrix at the beginning of each haptic frame and then
+    // automatically applies offsets to the stylus position (and maybe some other things) based
+    // on this.  This may work ok for quickly converting an existing OpenGL app to use haptics,
+    // but it is super confusing for a server-based application like this one when the haptic
+    // rendering is auto-magically impacted by the graphics rendering state!  Thus, our approach
+    // is the load the identity matrix into the OpenGL modelview before starting the haptic frame.
+    
     glMatrixMode(GL_MODELVIEW);
     glLoadIdentity();
+
     phantom->BeginHapticFrame();
     phantom->CheckHapticError();
+
     phantom->DrawHaptics();
     phantom->CheckHapticError();
-    // end the haptic frame and let the haptic thread take over
+
     phantom->EndHapticFrame();
     phantom->CheckHapticError();
 
+
+    // GRAPHICS RENDERING PASS
+
+    // Add a view matrix to the ModelView that positions the camera at some positive z value,
+    // looking in the -Z direction toward the origin.  The CAMERA_Z and CAMERA_FOV values
+    // should be set so that we get a good view of the entire custom_workspace volume.
     glMatrixMode(GL_MODELVIEW);
     glLoadIdentity();
     hduVector3Dd cam_pos(0, 0, CAMERA_Z);

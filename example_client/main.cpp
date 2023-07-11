@@ -54,6 +54,10 @@ int main(int argc, char** argv) {
         pos[1] = 0;
         pos[2] = 0;
 
+        MinVR3Net::SendVREvent(&server_fd, VREventVector3("Phantom/WorldToWorkspace/Translation", 100, 0, 0));
+        MinVR3Net::SendVREvent(&server_fd, VREventVector3("Phantom/WorldToWorkspace/Scale", 0.5, 0.5, 0.5));
+
+
         bool viscosity_on = false;
         MinVR3Net::SendVREvent(&server_fd, VREventFloat("ForceEffect/AmbientViscous/SetGain", 0.8));
         MinVR3Net::SendVREvent(&server_fd, VREventFloat("ForceEffect/AmbientViscous/SetMagnitudeCap", 1.0));
