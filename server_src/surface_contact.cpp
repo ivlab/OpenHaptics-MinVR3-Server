@@ -134,6 +134,8 @@ void SurfaceContact::DrawHaptics() {
             Phantom::CheckHapticError();
         }
 
+        hlTouchableFace(HL_FRONT);
+
         hlMaterialf(HL_FRONT, HL_STIFFNESS, stiffness_);
         hlMaterialf(HL_FRONT, HL_DAMPING, damping_);
         hlMaterialf(HL_FRONT, HL_STATIC_FRICTION, static_friction_);

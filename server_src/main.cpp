@@ -63,6 +63,9 @@ void shutdownNetwork();
 
 void drawLine();
 
+#define CAMERA_Z 600
+#define CAMERA_FOV 50
+
 int main(int argc, char* argv[])
 {
     // optionally, override defaults with command line options
@@ -139,6 +142,9 @@ void glutDisplay() {
     phantom->CheckHapticError();
 
     // update haptic rendering with the latest shape/effect info
+
+    glMatrixMode(GL_MODELVIEW);
+    glLoadIdentity();
     phantom->BeginHapticFrame();
     phantom->CheckHapticError();
     phantom->DrawHaptics();
@@ -147,6 +153,14 @@ void glutDisplay() {
     phantom->EndHapticFrame();
     phantom->CheckHapticError();
 
+    glMatrixMode(GL_MODELVIEW);
+    glLoadIdentity();
+    hduVector3Dd cam_pos(0, 0, CAMERA_Z);
+    hduVector3Dd origin(0, 0, 0);
+    hduVector3Dd up(0, 1, 0);
+    gluLookAt(cam_pos[0], cam_pos[1], cam_pos[2],
+              origin[0], origin[1], origin[2],
+              up[0], up[1], up[2]);
 
     // draw graphics to the screen
     phantom->DrawGraphics();
@@ -177,28 +191,19 @@ void glutReshape(int width, int height) {
     // default units (mm).  The workspace is a non-uniform box.  The x dimension is the largest
     // and ranges from about -300mm to +300mm.  This view volume will include at least a box of
     // this size in all 3 dimensions.
-    hduVector3Dd cam_pos(0, 0, 900);
+    hduVector3Dd cam_pos(0, 0, CAMERA_Z);
     hduVector3Dd origin(0, 0, 0);
     hduVector3Dd up(0, 1, 0);
     double near_dist = 1;
     double far_dist = cam_pos[2] + 400;
-    double fov = 60;
+    double fov = CAMERA_FOV;
     double aspect = (double)width / height;
-
     
     glViewport(0, 0, width, height);
 
     glMatrixMode(GL_PROJECTION);
     glLoadIdentity();
     gluPerspective(fov, aspect, near_dist, far_dist);
-
-    glMatrixMode(GL_MODELVIEW);
-    glLoadIdentity();
-    gluLookAt(cam_pos[0], cam_pos[1], cam_pos[2],
-        origin[0], origin[1], origin[2],
-        up[0], up[1], up[2]);
-
-    phantom->UpdateHapticWorkspace();
 }
 
 

@@ -17,12 +17,9 @@ public:
     Phantom(EventMgr* event_mgr);
     virtual ~Phantom();
 
-    bool Init(const std::string &device_name = "Default PHANToM");
-    
+    bool Init(const std::string &device_name = "Default PHANToM");    
     void RegisterForceEffect(ForceEffect* effect);
-
-    void PollForInput();
-    void UpdateHapticWorkspace();
+    void PollForInput();    
     void Reset();
 
     void BeginHapticFrame();
@@ -41,6 +38,10 @@ public:
     double* position();
     double* rotation();
 
+    double* custom_workspace_dims();
+    double* custom_workspace_center();
+    double* custom_workspace_size();
+
     bool is_primary_btn_down();
     bool is_in_custom_workspace();
     
@@ -49,12 +50,14 @@ protected:
     HHD hd_device_;
     HHLRC hl_context_;
 
+    HDdouble custom_workspace_dims_[6];
+    HDdouble custom_workspace_center_[3];
+    HDdouble custom_workspace_size_[3];
+
     HDdouble transform_[16];
     HDdouble position_[3];
     HDdouble rotation_[4];
-
-    HDdouble custom_workspace_dims_[6];
-    HDdouble custom_workspace_size_[3];
+    HLboolean primary_down_;
 
     std::map<std::string, ForceEffect*> effects_;
 };

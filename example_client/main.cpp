@@ -70,11 +70,11 @@ int main(int argc, char** argv) {
 
         // a set of parallel lines to demonstrate line constraints
         MinVR3Net::SendVREvent(&server_fd, VREvent("ForceEffect/LineConstraint/BeginLines"));
-        float left = -400;
-        float right = -100;
-        float xinc = 50;
-        float top = 250;
-        float bottom = -250;
+        float left = -240;
+        float right = -20;
+        float xinc = 20;
+        float top = 150;
+        float bottom = -150;
         for (float x = left; x <= right; x += xinc) {
             MinVR3Net::SendVREvent(&server_fd, VREventVector3("ForceEffect/LineConstraint/AddVertex", x, top, 0));
             MinVR3Net::SendVREvent(&server_fd, VREventVector3("ForceEffect/LineConstraint/AddVertex", x, bottom, 0));
@@ -84,12 +84,12 @@ int main(int argc, char** argv) {
 
 
         // a simple surface to demonstrate surface constraints
-        left = 100;
-        right = 400;
-        top = 210;
-        bottom = 20;
-        float back = -100;
-        float front = 100;
+        left = 50;
+        right = 175;
+        top = 150;
+        bottom = 50;
+        float back = -25;
+        float front = 25;
         // signal start of mesh data
         MinVR3Net::SendVREvent(&server_fd, VREvent("ForceEffect/SurfaceConstraint/BeginGeometry"));
         // fill up vertex buffer
@@ -106,12 +106,12 @@ int main(int argc, char** argv) {
         MinVR3Net::SendVREvent(&server_fd, VREvent("ForceEffect/SurfaceConstraint/Start"));
 
         // a simple surface to demonstrate surface contact
-        left = 100;
-        right = 400;
-        top = -20;
-        bottom = -210;
-        back = -100;
-        front = 100;
+        left = 50;
+        right = 175;
+        top = -50;
+        bottom = -150;
+        back = -25;
+        front = 25;
         // signal start of mesh data
         MinVR3Net::SendVREvent(&server_fd, VREvent("ForceEffect/SurfaceContact/BeginGeometry"));
         // fill up vertex buffer

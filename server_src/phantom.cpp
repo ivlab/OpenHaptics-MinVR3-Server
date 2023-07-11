@@ -32,7 +32,7 @@ void HLCALLBACK MotionCallback(HLenum event, HLuint object, HLenum thread, HLcac
 }
 
 
-Phantom::Phantom(EventMgr* event_mgr) : hd_device_(HD_INVALID_HANDLE), hl_context_(0), event_mgr_(event_mgr) {
+Phantom::Phantom(EventMgr* event_mgr) : hd_device_(HD_INVALID_HANDLE), hl_context_(0), event_mgr_(event_mgr), primary_down_(false) {
 }
 
 Phantom::~Phantom() {
@@ -49,9 +49,7 @@ Phantom::~Phantom() {
 
 
 bool Phantom::is_primary_btn_down() {
-    HLboolean down;
-    hlGetBooleanv(HL_BUTTON1_STATE, &down);
-    return down;
+    return primary_down_;
 }
 
 bool Phantom::is_in_custom_workspace() {
@@ -69,21 +67,29 @@ bool Phantom::is_in_custom_workspace() {
 
 
 double* Phantom::transform() {
-    hlGetDoublev(HL_PROXY_TRANSFORM, transform_);
     return (double*)transform_;
 }
 
 double* Phantom::position() {
-    hlGetDoublev(HL_PROXY_POSITION, position_);
     return (double*)position_;
 }
 
 
 double* Phantom::rotation() {
-    hlGetDoublev(HL_PROXY_ROTATION, rotation_);
     return (double*)rotation_;
 }
 
+double* Phantom::custom_workspace_dims() {
+    return (double*)custom_workspace_dims_;
+}
+
+double* Phantom::custom_workspace_size() {
+    return (double*)custom_workspace_size_;
+}
+
+double* Phantom::custom_workspace_center() {
+    return (double*)custom_workspace_center_;
+}
 
 bool Phantom::Init(const std::string &device_name) {
     HDErrorInfo error;
@@ -113,36 +119,38 @@ bool Phantom::Init(const std::string &device_name) {
     hlEventd(HL_EVENT_MOTION_LINEAR_TOLERANCE, 1.0);   // default 1 mm
     hlEventd(HL_EVENT_MOTION_ANGULAR_TOLERANCE, 0.02); // default 0.02 radians
 
-    hlTouchableFace(HL_FRONT_AND_BACK);
-
-    
+    // tell OpenHaptics to ignore the OpenGL modelview matrix since our OpenGL program is really just for
+    // displaying some simple graphics to help us debug.  We will be specifying geometry directly
+    // in haptic "room space" coordinates rather than relative to the modelview.
+    hlDisable(HL_USE_GL_MODELVIEW);
     
     // For the IV/LAB Phantom Premium 1.5, the workspace reported from OpenHaptics with 
     //   HLdouble maxWorkspaceDims[6];
     //   hlGetDoublev(HL_MAX_WORKSPACE_DIMS, maxWorkspaceDims);
     // is this: -265, -94, -95, 265, 521.5, 129
-    // But, these are not very user friendly values.
-    // First, the center of the workspace is not (0,0,0).
-    // Second, this is a super conservative view of the usable workspace.  The device can
-    // typically generate good force feedback in a much larger volume.
+    // These are not very user friendly values because the center of the workspace is not (0,0,0).
 
     // To remedy this, we do two things:
     // 1. We define these custom workspace dims and use them wherever we might otherwise
     //    ask openhaptics for the max dimensions.
-    // 2. We apply a translation in the UpdateHapticWorkspace() method to place (0,0,0) at
+    // 2. We apply a translation in the BeginHapticFrame() method to place (0,0,0) at
     //    the center of the custom workspace.  This means objects rendered at the origin
     //    will tend be be centered within the Phantom's good working range.
-    custom_workspace_dims_[0] = -600;
-    custom_workspace_dims_[1] = -94;
-    custom_workspace_dims_[2] = -95;
-    custom_workspace_dims_[3] = 600;
-    custom_workspace_dims_[4] = 521.5;
-    custom_workspace_dims_[5] = 495;
+    custom_workspace_dims_[0] = -250;
+    custom_workspace_dims_[1] = -95;
+    custom_workspace_dims_[2] = -130;
+    custom_workspace_dims_[3] = 250;
+    custom_workspace_dims_[4] = 230;
+    custom_workspace_dims_[5] = 130;
 
     custom_workspace_size_[0] = custom_workspace_dims_[3] - custom_workspace_dims_[0];
     custom_workspace_size_[1] = custom_workspace_dims_[4] - custom_workspace_dims_[1];
     custom_workspace_size_[2] = custom_workspace_dims_[5] - custom_workspace_dims_[2];
     
+    custom_workspace_center_[0] = custom_workspace_dims_[0] + custom_workspace_size_[0] / 2.0;
+    custom_workspace_center_[1] = custom_workspace_dims_[1] + custom_workspace_size_[1] / 2.0;
+    custom_workspace_center_[2] = custom_workspace_dims_[2] + custom_workspace_size_[2] / 2.0;
+           
     CheckHapticError();
     return true;
 }
@@ -152,43 +160,28 @@ void Phantom::RegisterForceEffect(ForceEffect* effect) {
 }
 
 
-void Phantom::UpdateHapticWorkspace() {
-    GLdouble modelview[16];
-    glGetDoublev(GL_MODELVIEW_MATRIX, modelview);
-
-    GLdouble projection[16];
-    glGetDoublev(GL_PROJECTION_MATRIX, projection);
-
-    GLint viewport[4];
-    glGetIntegerv(GL_VIEWPORT, viewport);
-
-    // Note the use of custom_workspace_dims_ and custom_workspace_size_ here instead of
-    // querying OpenHaptics for the max workspace.  See comments in Init() for more info.
-    HLdouble center[3];
-    center[0] = custom_workspace_dims_[0] + custom_workspace_size_[0] / 2.0;
-    center[1] = custom_workspace_dims_[1] + custom_workspace_size_[1] / 2.0;
-    center[2] = custom_workspace_dims_[2] + custom_workspace_size_[2] / 2.0;
+void Phantom::BeginHapticFrame() {
+    hlBeginFrame();
 
     hlMatrixMode(HL_TOUCHWORKSPACE);
     hlLoadIdentity();
-
     // Not sure why the origin of the Phantom's workspace is not at the center of the workspace box.
     // This translation has the effect of placing the origin (0,0,0) at the center of the workable space
     // of the phantom.  So haptic shapes rendered at (0,0,0) are actually in the middle of the workspace.
-    hlTranslated(-center[0], -center[1], -center[2]);
-
-    // This does some magic to map the haptic workspace to the graphics view volume.  It seems to work
-    // well aside from the need to add the translation above.
-    hluFitWorkspace(projection);
-}
-
-
-void Phantom::BeginHapticFrame() {
-    hlBeginFrame();
+    hlTranslated(custom_workspace_center()[0], custom_workspace_center()[1], custom_workspace_center()[2]);
 }
 
 void Phantom::PollForInput() {
+    // proxy coordinates are returned in world coordinates, but we want touch coordinates
     hlCheckEvents();
+
+    // cache latest values at the beginning of each frame
+    hlGetBooleanv(HL_BUTTON1_STATE, &primary_down_);
+
+    hlGetDoublev(HL_PROXY_POSITION, position_);
+    hlGetDoublev(HL_PROXY_ROTATION, rotation_);
+    hlGetDoublev(HL_PROXY_TRANSFORM, transform_);
+    //std::cout << position_[0] << " " << position_[1] << " " << position_[2] << std::endl;
 }
 
 void Phantom::Reset() {
