@@ -1,6 +1,6 @@
 /**
   This server program uses the OpenHaptics library to render haptics to a PHANToM force feedback device.  OpenHaptics is an
-  older library that interfaces with OpenGL 2.0.  It can, very nicely, render haptic effects that are "drawn" to the screen using OpenGL
+  older library that interfaces with OpenGL 1.0.  It can, very nicely, render haptic effects that are "drawn" to the screen using OpenGL
   commands, like glBegin(), glVertex3f(), glEnd(); however, this is old-school OpenGL and won't work directly with a more recent
   OpenGL 3.0+ library.  Thus, the program creates an old-school OpenGL context with the good-old GLUT library.
  */
@@ -126,15 +126,17 @@ void exitHandler() {
 
 // this is essentially the program's mainloop
 void glutDisplay() {
-
+    // NETWORK READ
     // check for new connections and receive any pending events from the client
     readFromClient();
     phantom->CheckHapticError();
 
+    // GATHER INPUT EVENTS SINCE LAST FRAME
     // collect input events from the phantom
     phantom->PollForInput();
     phantom->CheckHapticError();
 
+    // PROCESS INPUT
     // process events received, either over the network or user input, since the last frame.
     // since this comes after BeginHapticFrame(), it is ok to include OpenHaptics calls within
     // any event callback routines.
@@ -146,51 +148,43 @@ void glutDisplay() {
 
     // OpenHaptics reads the GL modelview matrix at the beginning of each haptic frame and then
     // automatically applies offsets to the stylus position (and maybe some other things) based
-    // on this.  This may work ok for quickly converting an existing OpenGL app to use haptics,
-    // but it is super confusing for a server-based application like this one when the haptic
-    // rendering is auto-magically impacted by the graphics rendering state!  Thus, our approach
-    // is the load the identity matrix into the OpenGL modelview before starting the haptic frame.
-    
+    // on this, even when HL_USE_GL_MODELVIEW is disabled!  So, it is important to place this
+    // OpenGL call before the phantom->DrawHaptics() call.
     glMatrixMode(GL_MODELVIEW);
     glLoadIdentity();
-
-    phantom->BeginHapticFrame();
-    phantom->CheckHapticError();
 
     phantom->DrawHaptics();
     phantom->CheckHapticError();
 
-    phantom->EndHapticFrame();
-    phantom->CheckHapticError();
-
 
     // GRAPHICS RENDERING PASS
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
     // Add a view matrix to the ModelView that positions the camera at some positive z value,
     // looking in the -Z direction toward the origin.  The CAMERA_Z and CAMERA_FOV values
-    // should be set so that we get a good view of the entire custom_workspace volume.
+    // should be set so that we get a good view of the entire custom-workspace volume.
     glMatrixMode(GL_MODELVIEW);
     glLoadIdentity();
     hduVector3Dd cam_pos(0, 0, CAMERA_Z);
     hduVector3Dd origin(0, 0, 0);
     hduVector3Dd up(0, 1, 0);
-    gluLookAt(cam_pos[0], cam_pos[1], cam_pos[2],
-              origin[0], origin[1], origin[2],
-              up[0], up[1], up[2]);
+    gluLookAt(cam_pos[0], cam_pos[1], cam_pos[2], origin[0], origin[1], origin[2], up[0], up[1], up[2]);
 
-    // draw graphics to the screen
+    // ask the phantom class to draw any graphics it wants
     phantom->DrawGraphics();
-    drawGraphics();
-    phantom->CheckHapticError();
+    // if there were any additional graphics to draw, this would be the place to do it.
+
+    // end graphics rendering pass
     glutSwapBuffers();
     
+    
+    // NETWORK WRITE
     // send any events generated for the client during this frame
     writeToClient();
 } 
 
 
 void glutIdle() {
-    //phantom->CheckHapticError();
     glutPostRedisplay();
 }
 
@@ -223,8 +217,6 @@ void glutReshape(int width, int height) {
 }
 
 
-// MAIN GRAPHICS FUNCTIONS
-
 
 void initGraphics() {
     static const GLfloat light_model_ambient[] = { 0.5f, 0.5f, 0.5f, 1.0f };
@@ -254,24 +246,8 @@ void initGraphics() {
     glEnable(GL_LIGHT0);
 }
 
-void drawGraphics() {
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-    // draws a cursor, outline of the haptic workspace, and any graphics defined by
-    // the active force effects
-    phantom->DrawGraphics();
-    
-    // draw any other elements of the scene...
-    //glutSolidSphere(200, 32, 32);
-}
-
-void shutdownGraphics() {
-    
-}
-
-
-
-// MAIN NETWORK FUNCTIONS
+// NETWORK FUNCTIONS
 
 void initNetwork() {
     MinVR3Net::Init();

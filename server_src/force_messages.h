@@ -12,12 +12,10 @@
 // VREventQuaternion
 #define PHANTOM_ROTATION_UPDATE_EVENT_NAME "Phantom/Rotation"
 
-// VREventVector3
-#define PHANTOM_WORLD_TO_WORKSPACE_TRANSLATION "Phantom/WorldToWorkspace/Translation"
-// VREventQuaternion
-#define PHANTOM_WORLD_TO_WORKSPACE_ROTATION "Phantom/WorldToWorkspace/Rotation"
-// VREventVector3
-#define PHANTOM_WORLD_TO_WORKSPACE_SCALE "Phantom/WorldToWorkspace/Scale"
+
+#define MODEL_TO_WORLD_TRANSLATION_UPDATE_EVENT_NAME "ForceEffect/ModelToWorld/Translation"
+#define MODEL_TO_WORLD_ROTATION_UPDATE_EVENT_NAME "ForceEffect/ModelToWorld/Rotation"
+#define MODEL_TO_WORLD_SCALE_UPDATE_EVENT_NAME "ForceEffect/ModelToWorld/Scale"
 
 
 #define FORCE_EFFECT_PREFIX "ForceEffect/"
@@ -42,18 +40,18 @@ public:
         return std::string(PHANTOM_ROTATION_UPDATE_EVENT_NAME);
     }
 
-    static std::string get_world_to_workspace_translation_event_name() {
-        return std::string(PHANTOM_WORLD_TO_WORKSPACE_TRANSLATION);
+    static std::string get_model_to_world_translation_event_name() {
+        return std::string(MODEL_TO_WORLD_TRANSLATION_UPDATE_EVENT_NAME);
     }
 
-    static std::string get_world_to_workspace_rotation_event_name() {
-        return std::string(PHANTOM_WORLD_TO_WORKSPACE_ROTATION);
+    static std::string get_model_to_world_rotation_event_name() {
+        return std::string(MODEL_TO_WORLD_ROTATION_UPDATE_EVENT_NAME);
     }
-
-    static std::string get_world_to_workspace_scale_event_name() {
-        return std::string(PHANTOM_WORLD_TO_WORKSPACE_SCALE);
+    
+    static std::string get_model_to_world_scale_event_name() {
+        return std::string(MODEL_TO_WORLD_SCALE_UPDATE_EVENT_NAME);
     }
-
+    
     static std::string get_force_effect_prefix() {
         return std::string(FORCE_EFFECT_PREFIX);
     }
