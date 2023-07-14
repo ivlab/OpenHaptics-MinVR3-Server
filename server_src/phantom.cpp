@@ -19,6 +19,8 @@ void HLCALLBACK Button1UpCallback(HLenum event, HLuint object, HLenum thread, HL
 
 
 Phantom::Phantom(EventMgr* event_mgr) : hd_device_(HD_INVALID_HANDLE), hl_context_(0), event_mgr_(event_mgr), primary_down_(false) {
+    user_model_to_world_scale_ = hduVector3Dd(1, 1, 1);
+
     std::string event_name = ForceMessages::get_model_to_world_translation_event_name();
     event_mgr->AddListener(event_name, this, &Phantom::OnUserModelToWorldTranslationUpdate);
     event_name = ForceMessages::get_model_to_world_rotation_event_name();
@@ -161,7 +163,7 @@ bool Phantom::Init(const std::string &device_name) {
     // tell OpenHaptics to ignore the OpenGL modelview matrix.  Our OpenGL program is really just for
     // displaying some simple graphics to help us debug and we want these decoupled from the OpenGL
     // camera parameters.
-    hlDisable(HL_USE_GL_MODELVIEW);
+    //hlDisable(HL_USE_GL_MODELVIEW);
     
     // For the IV/LAB Phantom Premium 1.5, the workspace reported from OpenHaptics with 
     //   HLdouble maxWorkspaceDims[6];
@@ -208,16 +210,21 @@ void Phantom::PollForInput() {
     // cache latest values at the beginning of each frame
     hlGetBooleanv(HL_BUTTON1_STATE, &primary_down_);
 
+
+
     hlGetDoublev(HL_PROXY_POSITION, touch_space_position_);
     hlGetDoublev(HL_PROXY_ROTATION, touch_space_rotation_);
     hlGetDoublev(HL_PROXY_TRANSFORM, touch_space_transform_);
+
+    std::cout << touch_space_position_[0] << "  " << touch_space_transform_.get(3,0) << std::endl;
+
     
     // note: as we have defined it, Touch Space == World Space, so transforming by the inverse of
     // the user's model-to-world will transform the stylus pos/rot into the user's Model Space.
     
     // user_space_transform = user_world_to_model_matrix * touch_space_transform_;
     user_space_transform_ = user_world_to_model_matrix_;
-    user_space_transform_.multRight(touch_space_transform_);
+    user_space_transform_.multLeft(touch_space_transform_);
     
     // extract rotation as a hduQuaternion
     hduMatrix user_space_transform_rot_only = user_space_transform_;
@@ -291,11 +298,11 @@ void Phantom::DrawHaptics() {
     // As in OpenGL, the ModelView matrix is really two matrices: (1) the Model matrix, and (2) the View matrix.
     // The View matrix converts from World Space to View Space, and the Model matrix converts from Model Space
     // to World Space, i.e., ModelView = WorldToView * ModelToWorld
-    hlMatrixMode(HL_MODELVIEW);
+    glMatrixMode(GL_MODELVIEW);
     
     // The View matrix, a.k.a. WorldToView matrix, is the identity for this server because we are not coupling
     // the haptics to the camera.  So, the first matrix on the HL_MODELVIEW stack is the identity.
-    hlLoadIdentity(); // ModelView = WorldToView
+    glLoadIdentity(); // ModelView = WorldToView
 
     // Note: At this point, almost all of the transforms are the identity.  So, we have made World Space equal
     // View Space, which equals Touch Space, which is almost equal to Workspace Space, the only difference
@@ -310,7 +317,7 @@ void Phantom::DrawHaptics() {
     // system is used to define the force effects into Touch Space, where the units are in real-world mm
     // and the origin is at the center of the usable bounds of the phantom device.  As in OpenGL, the
     // ModelToWorld matrix is applied to the ModelView matrix stack.
-    hlMultMatrixd(user_model_to_world_matrix_); // ModelView = WorldToView * ModelToWorld
+    glMultMatrixd(user_model_to_world_matrix_); // ModelView = WorldToView * ModelToWorld
 
     for (const auto& entry : effects_) {
         ForceEffect* effect = entry.second;
@@ -388,19 +395,19 @@ void Phantom::DrawGraphics() {
     glEnable(GL_LIGHTING);
     glPopMatrix();
     
+
+
     // Draw a simple cursor (code adapted from OpenHaptics examples)
     // sizes in mm
     static const double kCursorRadius = 8.0;
     static const double kCursorHeight = 20.0;
 
     // Push state
+    glMatrixMode(GL_MODELVIEW);
     glPushAttrib(GL_CURRENT_BIT | GL_ENABLE_BIT | GL_LIGHTING_BIT);
     glPushMatrix();
 
-    // Get the proxy transform
-    HLdouble proxyxform[16];
-    hlGetDoublev(HL_PROXY_TRANSFORM, proxyxform);
-    glMultMatrixd(proxyxform);
+    glMultMatrixd(touch_space_transform_);
 
     // Use change in color to signal whether the button is up/down
     glEnable(GL_COLOR_MATERIAL);
@@ -430,6 +437,7 @@ void Phantom::DrawGraphics() {
     
     // Now, we can apply the user-set ModelToWorld matrix and draw all the effects in the user's
     // model space.
+    glMatrixMode(GL_MODELVIEW);
     glPushMatrix();
     glMultMatrixd(user_model_to_world_matrix_);
 

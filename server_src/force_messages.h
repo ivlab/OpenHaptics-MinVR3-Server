@@ -13,9 +13,9 @@
 #define PHANTOM_ROTATION_UPDATE_EVENT_NAME "Phantom/Rotation"
 
 
-#define MODEL_TO_WORLD_TRANSLATION_UPDATE_EVENT_NAME "ForceEffect/ModelToWorld/Translation"
-#define MODEL_TO_WORLD_ROTATION_UPDATE_EVENT_NAME "ForceEffect/ModelToWorld/Rotation"
-#define MODEL_TO_WORLD_SCALE_UPDATE_EVENT_NAME "ForceEffect/ModelToWorld/Scale"
+#define MODEL_TO_WORLD_TRANSLATION_UPDATE_EVENT_NAME "Phantom/ModelToWorld/Translation"
+#define MODEL_TO_WORLD_ROTATION_UPDATE_EVENT_NAME "Phantom/ModelToWorld/Rotation"
+#define MODEL_TO_WORLD_SCALE_UPDATE_EVENT_NAME "Phantom/ModelToWorld/Scale"
 
 
 #define FORCE_EFFECT_PREFIX "ForceEffect/"

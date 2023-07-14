@@ -54,8 +54,9 @@ int main(int argc, char** argv) {
         pos[1] = 0;
         pos[2] = 0;
 
-        MinVR3Net::SendVREvent(&server_fd, VREventVector3("Phantom/WorldToWorkspace/Translation", 100, 0, 0));
-        MinVR3Net::SendVREvent(&server_fd, VREventVector3("Phantom/WorldToWorkspace/Scale", 0.5, 0.5, 0.5));
+        MinVR3Net::SendVREvent(&server_fd, VREventVector3("Phantom/ModelToWorld/Translation", 100, 0, 0));
+        MinVR3Net::SendVREvent(&server_fd, VREventQuaternion("Phantom/ModelToWorld/Rotation", 1, 0, 0, 1));
+        MinVR3Net::SendVREvent(&server_fd, VREventVector3("Phantom/ModelToWorld/Scale", 0.5, 0.5, 0.5));
 
 
         bool viscosity_on = false;

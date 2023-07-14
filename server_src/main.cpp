@@ -116,7 +116,6 @@ int main(int argc, char* argv[])
 
 void exitHandler() {
     shutdownNetwork();
-    shutdownGraphics();
     delete phantom;
 }
 
@@ -126,17 +125,24 @@ void exitHandler() {
 
 // this is essentially the program's mainloop
 void glutDisplay() {
-    // NETWORK READ
+    // NETWORK READ / GATHER INPUT EVENTS SINCE LAST FRAME
+    
     // check for new connections and receive any pending events from the client
     readFromClient();
-    phantom->CheckHapticError();
 
-    // GATHER INPUT EVENTS SINCE LAST FRAME
+
+
+
+    glMatrixMode(GL_MODELVIEW);
+    glLoadIdentity();
+    hlMatrixMode(HL_MODELVIEW);
+    hlLoadIdentity();
     // collect input events from the phantom
     phantom->PollForInput();
     phantom->CheckHapticError();
 
     // PROCESS INPUT
+    
     // process events received, either over the network or user input, since the last frame.
     // since this comes after BeginHapticFrame(), it is ok to include OpenHaptics calls within
     // any event callback routines.
@@ -144,14 +150,21 @@ void glutDisplay() {
     phantom->CheckHapticError();
 
 
-    // HAPTICS RENDERING PASS
+    // PRE-RENDERING SETUP
 
-    // OpenHaptics reads the GL modelview matrix at the beginning of each haptic frame and then
-    // automatically applies offsets to the stylus position (and maybe some other things) based
-    // on this, even when HL_USE_GL_MODELVIEW is disabled!  So, it is important to place this
-    // OpenGL call before the phantom->DrawHaptics() call.
+    // OpenHaptics reads either the GL or HL modelview matrix at the beginning of each haptic frame
+    // and then automatically applies offsets to the stylus position, which is reported in "world"
+    // coordinates.  It's preferable (in my opinion) to start with a clean modelview matrix, 
+    // get the device coordinates in touch space and then convert from there as needed.  Technically,
+    // if HL_USE_GL_MODELVIEW is disabled, loading the identity for the GL_MODELVIEW should not be
+    // necessary, but let's start both matrices off at the same place.
     glMatrixMode(GL_MODELVIEW);
     glLoadIdentity();
+    hlMatrixMode(HL_MODELVIEW);
+    hlLoadIdentity();
+
+
+    // HAPTICS RENDERING PASS
 
     phantom->DrawHaptics();
     phantom->CheckHapticError();
@@ -163,11 +176,11 @@ void glutDisplay() {
     // Add a view matrix to the ModelView that positions the camera at some positive z value,
     // looking in the -Z direction toward the origin.  The CAMERA_Z and CAMERA_FOV values
     // should be set so that we get a good view of the entire custom-workspace volume.
-    glMatrixMode(GL_MODELVIEW);
-    glLoadIdentity();
     hduVector3Dd cam_pos(0, 0, CAMERA_Z);
     hduVector3Dd origin(0, 0, 0);
     hduVector3Dd up(0, 1, 0);
+    glMatrixMode(GL_MODELVIEW);
+    glLoadIdentity();
     gluLookAt(cam_pos[0], cam_pos[1], cam_pos[2], origin[0], origin[1], origin[2], up[0], up[1], up[2]);
 
     // ask the phantom class to draw any graphics it wants
