@@ -54,10 +54,13 @@ int main(int argc, char** argv) {
         pos[1] = 0;
         pos[2] = 0;
 
-        MinVR3Net::SendVREvent(&server_fd, VREventVector3("Phantom/ModelToWorld/Translation", 100, 0, 0));
-        MinVR3Net::SendVREvent(&server_fd, VREventQuaternion("Phantom/ModelToWorld/Rotation", 1, 0, 0, 1));
-        MinVR3Net::SendVREvent(&server_fd, VREventVector3("Phantom/ModelToWorld/Scale", 0.5, 0.5, 0.5));
-
+        // Examples of setting a global Model-to-World transformation
+        //MinVR3Net::SendVREvent(&server_fd, VREventVector3("Phantom/ModelToWorld/Translation", 100, 0, 0));
+        // 90 deg around Y
+        //MinVR3Net::SendVREvent(&server_fd, VREventQuaternion("Phantom/ModelToWorld/Rotation", 0, 0.7071, 0, 0.7071));
+        // 180 deg around Y
+        //MinVR3Net::SendVREvent(&server_fd, VREventQuaternion("Phantom/ModelToWorld/Rotation", 0, 1, 0, 0));
+        //MinVR3Net::SendVREvent(&server_fd, VREventVector3("Phantom/ModelToWorld/Scale", 0.5, 0.5, 0.5));
 
         bool viscosity_on = false;
         MinVR3Net::SendVREvent(&server_fd, VREventFloat("ForceEffect/AmbientViscous/SetGain", 0.8));
