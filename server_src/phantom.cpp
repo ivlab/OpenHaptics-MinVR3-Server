@@ -216,7 +216,7 @@ void Phantom::PollForInput() {
     hlGetDoublev(HL_PROXY_ROTATION, touch_space_rotation_);
     hlGetDoublev(HL_PROXY_TRANSFORM, touch_space_transform_);
 
-    std::cout << touch_space_position_[0] << "  " << touch_space_transform_.get(3,0) << std::endl;
+    // std::cout << touch_space_position_[0] << "  " << touch_space_transform_.get(3,0) << std::endl;
 
     
     // note: as we have defined it, Touch Space == World Space, so transforming by the inverse of
@@ -251,9 +251,9 @@ void Phantom::PollForInput() {
     float angle = abs(2.0 * atan2(delta_rot.v().magnitude(), delta_rot.s()));
     if (angle >= 0.2) {
         event_mgr_->QueueEvent(new VREventQuaternion(ForceMessages::get_rotation_update_event_name(),
-            (float)user_space_rotation_[0], (float)user_space_rotation_[1], (float)user_space_rotation_[2], (float)user_space_rotation_[3]));
+            (float)user_space_rotation_.v()[0], (float)user_space_rotation_.v()[1], (float)user_space_rotation_.v()[2], (float)user_space_rotation_.s()));
         event_mgr_->QueueForClient(new VREventQuaternion(ForceMessages::get_rotation_update_event_name(),
-            (float)user_space_rotation_[0], (float)user_space_rotation_[1], (float)user_space_rotation_[2], (float)user_space_rotation_[3]));
+            (float)user_space_rotation_.v()[0], (float)user_space_rotation_.v()[1], (float)user_space_rotation_.v()[2], (float)user_space_rotation_.s()));
         last_reported_rotation_ = touch_space_rotation_;
     }
 }

@@ -1,0 +1,19 @@
+# MinVR3 ConfigVal File (Assets/minvr-configvals-default.txt)
+# This file is parsed when VREngine starts up.
+# 
+# Notes: The typical use of this file is to define default settings for ConfigVals, where
+# "default" means the value works well for multiple VRConfigs.  For example, a good size in
+# meters for a VR menu might be the same for many VR HMDs, CAVEs, or Powerwalls so a default
+# size could be defined here like `MENU_SIZE = 1.5`.  MENU_SIZE would not be redefined in any
+# VRConfig-specific config files (e.g., settings-cave.minvr.txt) where 1.5 is a good size,
+# but MENU_SIZE would be redefined in VRConfig-specific config files where the size should
+# be different.  For example, the menu would need to be much smaller than 1.5 meters when
+# running in Desktop or zSpace modes, so these config files could overwrite the MENU_SIZE
+# setting by including a line like `MENU_SIZE = 0.25`.  In the menu's Start() function,
+# Programmers would apply the setting to the menu by writing something like:
+#    this.size = ConfigVal("MENU_SIZE", 1.5);
+# Note, the second argument to the ConfigVal command is the default value to use if an
+# entry for MENU_SIZE is not found.
+
+MENU_SIZE = 1.5
+
