@@ -4,23 +4,37 @@ using System.Collections.Specialized;
 using System.Diagnostics;
 using UnityEngine;
 
+
+
 namespace IVLab.MinVR3
 {
 
     public class PhantomForceClient : MonoBehaviour, IVREventProducer
     {
+        public bool primaryBtnDown {
+            get => m_PrimaryBtnDown;
+        }
+
+        public Vector3 stylusPosition {
+            get => m_StylusPosition;
+        }
+
+        public Quaternion stylusRotation {
+            get => m_StylusRotation;
+        }
+
+
         void Reset()
         {
-            m_PhantomBtnDownEventNameFromServer = "Phantom/Primary DOWN";
-            m_PhantomBtnUpEventNameFromServer = "Phantom/Primary UP";
-            m_PhantomPositionEventNameFromServer = "Phantom/Position";
-            m_PhantomRotationEventNameFromServer = "Phantom/Rotation";
+            m_ServerPhantomBtnDownEventName = "Phantom/Primary DOWN";
+            m_ServerPhantomBtnUpEventName = "Phantom/Primary UP";
+            m_ServerPhantomPositionEventName = "Phantom/Position";
+            m_ServerPhantomRotationEventName = "Phantom/Rotation";
 
-            m_PhantomBtnDownEvent = VREventPrototypeAny.Create("Phantom/PrimaryBtn/Down");
-            m_PhantomBtnUpEvent = VREventPrototypeAny.Create("Phantom/PrimaryBtn/Up");
-            m_PhantomPositionEvent = VREventPrototypeAny.Create<Vector3>("Phantom/Position");
-            m_PhantomRotationEvent = VREventPrototypeAny.Create<Quaternion>("Phantom/Rotation");
-            SetEditorModeForEventPrototypes();
+            m_PhantomBtnDownEventName = "Phantom/PrimaryBtn/Down";
+            m_PhantomBtnUpEventName = "Phantom/PrimaryBtn/Up";
+            m_PhantomPositionEventName = "Phantom/Position";
+            m_PhantomRotationEventName = "Phantom/Rotation";
         }
 
         // Start is called before the first frame update
@@ -36,7 +50,7 @@ namespace IVLab.MinVR3
         {
         }
 
-        Vector3 SwapCoordSystem(Vector3 v)
+        public Vector3 SwapCoordSystem(Vector3 v)
         {
             // negate the z coord of the axis because Unity is +Z forward and the Phantom is -Z forward
             return new Vector3(v.x, v.y, -v.z);
@@ -56,95 +70,84 @@ namespace IVLab.MinVR3
 
         void OnVREventReceivedFromServer(VREvent vrEvent)
         {
-            if (vrEvent.name == m_PhantomBtnDownEventNameFromServer) {
+            if (vrEvent.name == m_ServerPhantomBtnDownEventName) {
                 m_PrimaryBtnDown = true;
-                VREngine.instance.eventManager.QueueEvent(new VREvent(m_PhantomBtnDownEvent.GetEventName()));
+                VREngine.instance.eventManager.QueueEvent(new VREvent(m_PhantomBtnDownEventName));
 
                 SendTestButtonDownCommands();
             } 
-            else if (vrEvent.name == m_PhantomBtnUpEventNameFromServer) {
+            else if (vrEvent.name == m_ServerPhantomBtnUpEventName) {
                 m_PrimaryBtnDown = false;
-                VREngine.instance.eventManager.QueueEvent(new VREvent(m_PhantomBtnUpEvent.GetEventName()));
+                VREngine.instance.eventManager.QueueEvent(new VREvent(m_PhantomBtnUpEventName));
 
                 SendTestButtonUpCommands();
             }
-            else if (vrEvent.name == m_PhantomPositionEventNameFromServer)
+            else if (vrEvent.name == m_ServerPhantomPositionEventName)
             {
                 m_StylusPosition = SwapCoordSystem((vrEvent as VREventVector3).GetData());
 
-                VREngine.instance.eventManager.QueueEvent(new VREventVector3(m_PhantomPositionEvent.GetEventName(), m_StylusPosition));
+                VREngine.instance.eventManager.QueueEvent(new VREventVector3(m_PhantomPositionEventName, m_StylusPosition));
 
                 SendTestPositionMoveCommands();
             }
-            else if (vrEvent.name == m_PhantomRotationEventNameFromServer)
+            else if (vrEvent.name == m_ServerPhantomRotationEventName)
             {
                 m_StylusRotation = SwapCoordSystem((vrEvent as VREventQuaternion).GetData());
 
-                VREngine.instance.eventManager.QueueEvent(new VREventQuaternion(m_PhantomRotationEvent.GetEventName(), m_StylusRotation));
+                VREngine.instance.eventManager.QueueEvent(new VREventQuaternion(m_PhantomRotationEventName, m_StylusRotation));
             }
+        }
+
+        public void Send(VREvent vrEvent)
+        {
+            m_ServerConnection.Send(vrEvent);
         }
 
         public List<IVREventPrototype> GetEventPrototypes()
         {
             List<IVREventPrototype> eventPrototypes = new List<IVREventPrototype>();
-            eventPrototypes.Add(m_PhantomBtnDownEvent);
-            eventPrototypes.Add(m_PhantomBtnUpEvent);
-            eventPrototypes.Add(m_PhantomPositionEvent);
-            eventPrototypes.Add(m_PhantomRotationEvent);
+            eventPrototypes.Add(VREventPrototype.Create(m_PhantomBtnDownEventName));
+            eventPrototypes.Add(VREventPrototype.Create(m_PhantomBtnUpEventName));
+            eventPrototypes.Add(VREventPrototypeVector3.Create(m_PhantomPositionEventName));
+            eventPrototypes.Add(VREventPrototypeQuaternion.Create(m_PhantomRotationEventName));
             return eventPrototypes;
         }
 
-        void OnValidate()
-        {
-            // TODO: After addressing the TODO below, these lines can be removed.  These just prevent
-            // any accidental bugs by changing the datatype to one that does not make sense.
-            m_PhantomBtnUpEvent.SetEventDataType("");
-            m_PhantomBtnDownEvent.SetEventDataType("");
-            m_PhantomPositionEvent.SetEventDataType(typeof(Vector3));
-            m_PhantomRotationEvent.SetEventDataType(typeof(Quaternion));
-
-            SetEditorModeForEventPrototypes();
-        }
-
-        void SetEditorModeForEventPrototypes()
-        {
-            // VREventPrototypes support two different editor modes.  Usually, we want to provide
-            // a dropdown list in the editor so programmers can select an event prototype from a
-            // list of known prototypes provided by the event manager.  This is the other case.  In
-            // a virtual input device like this, we want the editor interface to make it possible
-            // for us to define a new name for an event.
-
-            // TODO: In this case, the data types will not change, so it would be better to use
-            // specific VREventPrototypes rather than VREventPrototypeAny.  However, the specific
-            // versions do not yet have an editor property drawer that supports this "define in
-            // editor mode".
-            m_PhantomBtnDownEvent.SetDefineNewPrototypeInEditor(true);
-            m_PhantomBtnUpEvent.SetDefineNewPrototypeInEditor(true);
-            m_PhantomPositionEvent.SetDefineNewPrototypeInEditor(true);
-            m_PhantomRotationEvent.SetDefineNewPrototypeInEditor(true);
-        }
 
         [Header("Connection to ForceServer")]
         [SerializeField] private TcpJsonVREventConnection m_ServerConnection;
 
-        [SerializeField] private string m_PhantomBtnDownEventNameFromServer;
-        [SerializeField] private string m_PhantomBtnUpEventNameFromServer;
-        [SerializeField] private string m_PhantomPositionEventNameFromServer;
-        [SerializeField] private string m_PhantomRotationEventNameFromServer;
+        [Tooltip("Name of the event the ForceServer generates on Primary Button down.")]
+        [SerializeField] private string m_ServerPhantomBtnDownEventName;
+        [Tooltip("Name of the event the ForceServer generates on Primary Button up.")]
+        [SerializeField] private string m_ServerPhantomBtnUpEventName;
+        [Tooltip("Name of the event the ForceServer generates for stylus Position updates.")]
+        [SerializeField] private string m_ServerPhantomPositionEventName;
+        [Tooltip("Name of the event the ForceServer generates for stylus Rotation updates.")]
+        [SerializeField] private string m_ServerPhantomRotationEventName;
 
         [Header("VREvents Generated")]
         [Tooltip("VREvent to generate when the Phantom Stylus Primary button goes down.")]
-        [SerializeField] private VREventPrototypeAny m_PhantomBtnDownEvent;
+        [SerializeField] private string m_PhantomBtnDownEventName;
         [Tooltip("VREvent to generate when the Phantom Stylus Primary button goes up.")]
-        [SerializeField] private VREventPrototypeAny m_PhantomBtnUpEvent;
+        [SerializeField] private string m_PhantomBtnUpEventName;
         [Tooltip("VREvent to generate when the Phantom Stylus is moved to a new position.")]
-        [SerializeField] private VREventPrototypeAny m_PhantomPositionEvent;
+        [SerializeField] private string m_PhantomPositionEventName;
         [Tooltip("VREvent to generate when the Phantom Stylus is moved to a new orientation.")]
-        [SerializeField] private VREventPrototypeAny m_PhantomRotationEvent;
+        [SerializeField] private string m_PhantomRotationEventName;
 
         private bool m_PrimaryBtnDown;
         private Vector3 m_StylusPosition;
         private Quaternion m_StylusRotation;
+
+
+
+
+
+
+
+
+
 
 
         bool m_ViscosityOn = false;
