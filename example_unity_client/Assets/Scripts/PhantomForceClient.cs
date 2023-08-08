@@ -9,7 +9,14 @@ using UnityEngine;
 
 namespace IVLab.MinVR3
 {
-
+    /// <summary>
+    /// TODO:
+    /// - save this script, delete others
+    /// - revert to a 2019 project
+    /// - make unity scene that recreates the server's usual test scene
+    /// - might still work best with separate scripts to individually create / modify the various effects,
+    ///   at least for geometry ones where you might capture the geometry directly from a GameObject.
+    /// </summary>
     public class PhantomForceClient : MonoBehaviour, IVREventProducer
     {
         /// <summary>
