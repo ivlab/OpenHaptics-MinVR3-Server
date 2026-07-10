@@ -12,6 +12,7 @@ set (SOURCEFILES
   server_src/point_constraint.cpp
   server_src/surface_constraint.cpp
   server_src/surface_contact.cpp
+  server_src/tangent_plane_constraint.cpp
   server_src/main.cpp
   server_src/phantom.cpp
 )
@@ -27,6 +28,7 @@ set (HEADERFILES
   server_src/point_constraint.h
   server_src/surface_constraint.h
   server_src/surface_contact.h
+  server_src/tangent_plane_constraint.h
   server_src/phantom.h
 )
 

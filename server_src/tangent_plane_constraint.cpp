@@ -1,20 +1,50 @@
 #include "tangent_plane_constraint.h"
 #include "force_messages.h"
 #include "phantom.h"
+#include <GL/gl.h> // Ensure appropriate OpenGL headers are present
+#include <cmath>
+
+// Helper function to calculate two unit vectors orthogonal to a normal vector
+void calculateOrthogonalVectors(const hduVector3Dd& normal, hduVector3Dd& u, hduVector3Dd& v) {
+    hduVector3Dd n = normal;
+    n.normalize();
+
+    // Select an axis that is not collinear with the normal vector
+    // 0.577 is roughly 1/sqrt(3).
+    hduVector3Dd axis;
+    if (std::abs(n[0]) < 0.577) {
+        axis = hduVector3Dd(1.0, 0.0, 0.0);
+    }
+    else if (std::abs(n[1]) < 0.577) {
+        axis = hduVector3Dd(0.0, 1.0, 0.0);
+    }
+    else {
+        axis = hduVector3Dd(0.0, 0.0, 1.0);
+    }
+
+    // Generate orthogonal coordinate frame via cross products
+    u = n.crossProduct(axis);
+    u.normalize();
+
+    v = n.crossProduct(u);
+    v.normalize();
+}
 
 TangentPlaneConstraint::TangentPlaneConstraint(EventMgr* event_mgr) :
-    effect_id_(0), active_(false), has_valid_data_(false),
+    effect_id_(0), active_(false), has_valid_point_(false), has_valid_normal_(false),
     stiffness_(0.8), damping_(0.1)
 {
     std::string prefix = ForceMessages::get_force_effect_prefix() + Name() + "/";
     event_mgr->AddListener(prefix + "Start", this, &TangentPlaneConstraint::OnStartEffect);
     event_mgr->AddListener(prefix + "Stop", this, &TangentPlaneConstraint::OnStopEffect);
-    event_mgr->AddListener(prefix + "SetContactData", this, &TangentPlaneConstraint::OnSetContactData);
+    event_mgr->AddListener(prefix + "SetContactPoint", this, &TangentPlaneConstraint::OnSetContactPoint);
+    event_mgr->AddListener(prefix + "SetSurfaceNormal", this, &TangentPlaneConstraint::OnSetSurfaceNormal);
     event_mgr->AddListener(prefix + "SetStiffness", this, &TangentPlaneConstraint::OnSetStiffness);
     event_mgr->AddListener(prefix + "SetDamping", this, &TangentPlaneConstraint::OnSetDamping);
 
-    // Generate the custom effect ID
+    // Generate the custom HLAPI effect identifier
     effect_id_ = hlGenEffects(1);
+    hlCallback(HL_EFFECT_COMPUTE_FORCE, (HLcallbackProc)compute_tangent_force, this);
 }
 
 TangentPlaneConstraint::~TangentPlaneConstraint() {
@@ -25,9 +55,7 @@ TangentPlaneConstraint::~TangentPlaneConstraint() {
 
 void TangentPlaneConstraint::OnStartEffect(VREvent* e) {
     if (!active_) {
-        hlEffectd(HL_EFFECT_CALLBACK, (HLdouble)compute_tangent_force);
-        hlEffectd(HL_EFFECT_USER_DATA, (HLdouble)this);
-        hlStartEffect(HL_EFFECT_CUSTOM, effect_id_);
+        hlStartEffect(HL_EFFECT_CALLBACK, effect_id_);
         active_ = true;
     }
 }
@@ -39,24 +67,40 @@ void TangentPlaneConstraint::OnStopEffect(VREvent* e) {
     }
 }
 
-void TangentPlaneConstraint::OnSetContactData(VREvent* e) {
-    std::lock_guard<std::mutex> lock(data_mutex_);
-    contact_point_[0] = e->get_data<float>("contactPointX");
-    contact_point_[1] = e->get_data<float>("contactPointY");
-    contact_point_[2] = e->get_data<float>("contactPointZ");
+void TangentPlaneConstraint::OnSetContactPoint(VREvent* e) {
+    VREventVector3* e_p = dynamic_cast<VREventVector3*>(e);
+    if (e_p != NULL) {
+        std::lock_guard<std::mutex> lock(data_mutex_);
+        contact_point_[0] = e_p->x();
+        contact_point_[1] = e_p->y();
+        contact_point_[2] = e_p->z();
+        has_valid_point_ = true;
+    }
+}
 
-    surface_normal_[0] = e->get_data<float>("surfaceNormalX");
-    surface_normal_[1] = e->get_data<float>("surfaceNormalY");
-    surface_normal_[2] = e->get_data<float>("surfaceNormalZ");
-    has_valid_data_ = true;
+void TangentPlaneConstraint::OnSetSurfaceNormal(VREvent* e) {
+    VREventVector3* e_p = dynamic_cast<VREventVector3*>(e);
+    if (e_p != NULL) {
+        std::lock_guard<std::mutex> lock(data_mutex_);
+        surface_normal_[0] = e_p->x();
+        surface_normal_[1] = e_p->y();
+        surface_normal_[2] = e_p->z();
+        has_valid_normal_ = true;
+    }
 }
 
 void TangentPlaneConstraint::OnSetStiffness(VREvent* e) {
-    stiffness_ = e->get_data<float>("value");
+    VREventFloat* e_float = dynamic_cast<VREventFloat*>(e);
+    if (e_float != NULL) {
+        stiffness_ = e_float->get_data();
+    }
 }
 
 void TangentPlaneConstraint::OnSetDamping(VREvent* e) {
-    damping_ = e->get_data<float>("value");
+    VREventFloat* e_float = dynamic_cast<VREventFloat*>(e);
+    if (e_float != NULL) {
+        damping_ = e_float->get_data();
+    }
 }
 
 void TangentPlaneConstraint::Reset() {
@@ -64,19 +108,20 @@ void TangentPlaneConstraint::Reset() {
         hlStopEffect(effect_id_);
     }
     active_ = false;
-    has_valid_data_ = false;
+    has_valid_point_ = false;
+    has_valid_normal_ = false;
 }
 
 void TangentPlaneConstraint::DrawHaptics() {
-    // This is intentionally empty. All force rendering is handled by the custom callback.
+    // Intentionally empty. Forced calculations render completely via compute_tangent_force.
 }
 
 void TangentPlaneConstraint::DrawGraphics() {
-    if (!active_ || !has_valid_data_) {
+    if (!active_ || !has_valid_point_ || !has_valid_normal_) {
         return;
     }
 
-    // Safely copy data for rendering
+    // Safely sample geometry snapshots for graphic routines
     hduVector3Dd point, normal;
     {
         std::lock_guard<std::mutex> lock(data_mutex_);
@@ -84,71 +129,81 @@ void TangentPlaneConstraint::DrawGraphics() {
         normal = surface_normal_;
     }
 
-    // Draw a small quad to represent the tangent plane
     glDisable(GL_LIGHTING);
-    glColor3f(0.2, 0.8, 0.2);
+    glColor3f(0.2f, 0.8f, 0.2f);
 
     hduVector3Dd u, v;
-    hduVec3Dd_orthogonalVectors(normal, u, v);
+    calculateOrthogonalVectors(normal, u, v);
 
-    double size = 20.0; // 20mm
+    double size = 20.0; // 20mm visual plane dimensions
     hduVector3Dd p1 = point - u * size - v * size;
     hduVector3Dd p2 = point + u * size - v * size;
     hduVector3Dd p3 = point + u * size + v * size;
     hduVector3Dd p4 = point - u * size + v * size;
 
     glBegin(GL_QUADS);
-    glVertex3dv(p1);
-    glVertex3dv(p2);
-    glVertex3dv(p3);
-    glVertex3dv(p4);
+    glVertex3dv((double*)p1); // Fixed pointer typecast conversions
+    glVertex3dv((double*)p2);
+    glVertex3dv((double*)p3);
+    glVertex3dv((double*)p4);
     glEnd();
 
-    // Draw the normal vector
-    glColor3f(1.0, 1.0, 0.0);
+    // Render surface direction pointer
+    glColor3f(1.0f, 1.0f, 0.0f);
     glBegin(GL_LINES);
-    glVertex3dv(point);
-    glVertex3dv(point + normal * size * 2.0);
+    glVertex3dv((double*)point);
+    hduVector3Dd line_end = point + normal * size * 2.0;
+    glVertex3dv((double*)line_end);
     glEnd();
 
     glEnable(GL_LIGHTING);
 }
 
-HLCALLBACK TangentPlaneConstraint::compute_tangent_force(const HDdouble force[3], const HDdouble position[3], const HDdouble velocity[3], HDdouble xform[16], HDdouble result[3], void* userdata)
+HLboolean HLCALLBACK TangentPlaneConstraint::compute_tangent_force(HLenum type, HLuint effect, HLdouble* force, void* userdata)
 {
+    // Initialize forces to 0
+    force[0] = 0.0;
+    force[1] = 0.0;
+    force[2] = 0.0;
+
     TangentPlaneConstraint* self = static_cast<TangentPlaneConstraint*>(userdata);
-    result[0] = 0.0;
-    result[1] = 0.0;
-    result[2] = 0.0;
 
-    if (!self || !self->has_valid_data_) {
-        return;
+    // Safeguard check to ensure data structures are initialized
+    if (!self || !self->has_valid_point_ || !self->has_valid_normal_) {
+        return HL_TRUE;
     }
 
-    // Safely copy data for calculation
-    hduVector3Dd contact_point, surface_normal;
-    {
-        std::lock_guard<std::mutex> lock(self->data_mutex_);
-        contact_point = self->contact_point_;
-        surface_normal = self->surface_normal_;
-    }
+    // Extract device metrics instantaneously inside the high-rate thread pipeline
+    HDdouble devicePos[3];
+    HDdouble deviceVel[3];
+    hdGetDoublev(HD_CURRENT_POSITION, devicePos);
+    hdGetDoublev(HD_CURRENT_VELOCITY, deviceVel);
 
-    hduVector3Dd stylus_pos(position);
+    hduVector3Dd stylus_pos(devicePos);
+    hduVector3Dd stylus_vel(deviceVel);
+
+    // CRITICAL: Mutex locking is omitted here.
+    // Reading data values directly avoids locking collisions inside the 1000Hz loop.
+    hduVector3Dd contact_point = self->contact_point_;
+    hduVector3Dd surface_normal = self->surface_normal_;
+
     hduVector3Dd stylus_to_plane = stylus_pos - contact_point;
 
-    // Calculate penetration depth
-    double depth = stylus_to_plane.dot(surface_normal);
+    // Projection calculation tracking boundary invasion
+    double depth = stylus_to_plane.dotProduct(surface_normal);
 
+    // Penetration occurs if depth evaluates to less than 0
     if (depth < 0.0) {
-        hduVector3Dd stylus_vel(velocity);
-        double normal_velocity = stylus_vel.dot(surface_normal);
+        double normal_velocity = stylus_vel.dotProduct(surface_normal);
 
-        // Spring-damper model: F = -k*x - c*v
+        // Spring-damper physics representation: F = -k*x - c*v
         double force_magnitude = (-self->stiffness_ * depth) - (self->damping_ * normal_velocity);
         hduVector3Dd force_vec = force_magnitude * surface_normal;
 
-        result[0] = force_vec[0];
-        result[1] = force_vec[1];
-        result[2] = force_vec[2];
+        force[0] = force_vec[0];
+        force[1] = force_vec[1];
+        force[2] = force_vec[2];
     }
+
+    return HL_TRUE;
 }

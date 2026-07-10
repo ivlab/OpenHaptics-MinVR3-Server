@@ -5,8 +5,11 @@
 #include <minvr3.h>
 #include <mutex>
 
-#include "event_mgr.hh"
+#include "event_mgr.h"
 #include "force_effect.h"
+
+
+
 
 class TangentPlaneConstraint : public ForceEffect {
 public:
@@ -19,7 +22,8 @@ public:
     // Event handlers
     void OnStartEffect(VREvent* e);
     void OnStopEffect(VREvent* e);
-    void OnSetContactData(VREvent* e);
+    void OnSetContactPoint(VREvent* e);
+    void OnSetSurfaceNormal(VREvent* e);
     void OnSetStiffness(VREvent* e);
     void OnSetDamping(VREvent* e);
 
@@ -30,7 +34,7 @@ public:
 
 private:
     // The static callback function for the custom force effect
-    static HLCALLBACK compute_tangent_force(const HDdouble force[3], const HDdouble position[3], const HDdouble velocity[3], HDdouble xform[16], HDdouble result[3], void* userdata);
+    static HLboolean HLCALLBACK compute_tangent_force(HLenum type, HLuint effect, HLdouble* force, void *userdata);// const HDdouble force[3], const HDdouble position[3], const HDdouble velocity[3], HDdouble xform[16], HDdouble result[3], void* userdata);
 
     HLuint effect_id_;
     bool active_;
@@ -39,7 +43,8 @@ private:
     std::mutex data_mutex_;
     hduVector3Dd contact_point_;
     hduVector3Dd surface_normal_;
-    bool has_valid_data_;
+    bool has_valid_point_;
+    bool has_valid_normal_;
 
     // Haptic parameters
     HLdouble stiffness_;
