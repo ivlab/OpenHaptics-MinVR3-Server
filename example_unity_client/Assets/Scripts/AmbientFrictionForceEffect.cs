@@ -17,7 +17,7 @@ namespace IVLab.MinVR3 {
 
         void StopEffect()
         {
-            m_PhantomForceClient.Send(new VREvent("ForceEffect/AmbientFriction/Start"));
+            m_PhantomForceClient.Send(new VREvent("ForceEffect/AmbientFriction/Stop"));
         }
 
         void SetGain(float gain) {

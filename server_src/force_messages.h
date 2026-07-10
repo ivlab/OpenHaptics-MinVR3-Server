@@ -12,12 +12,6 @@
 // VREventQuaternion
 #define PHANTOM_ROTATION_UPDATE_EVENT_NAME "Phantom/Rotation"
 
-
-#define MODEL_TO_WORLD_TRANSLATION_UPDATE_EVENT_NAME "Phantom/ModelToWorld/Translation"
-#define MODEL_TO_WORLD_ROTATION_UPDATE_EVENT_NAME "Phantom/ModelToWorld/Rotation"
-#define MODEL_TO_WORLD_SCALE_UPDATE_EVENT_NAME "Phantom/ModelToWorld/Scale"
-
-
 #define FORCE_EFFECT_PREFIX "ForceEffect/"
 
 
@@ -40,18 +34,6 @@ public:
         return std::string(PHANTOM_ROTATION_UPDATE_EVENT_NAME);
     }
 
-    static std::string get_model_to_world_translation_event_name() {
-        return std::string(MODEL_TO_WORLD_TRANSLATION_UPDATE_EVENT_NAME);
-    }
-
-    static std::string get_model_to_world_rotation_event_name() {
-        return std::string(MODEL_TO_WORLD_ROTATION_UPDATE_EVENT_NAME);
-    }
-    
-    static std::string get_model_to_world_scale_event_name() {
-        return std::string(MODEL_TO_WORLD_SCALE_UPDATE_EVENT_NAME);
-    }
-    
     static std::string get_force_effect_prefix() {
         return std::string(FORCE_EFFECT_PREFIX);
     }

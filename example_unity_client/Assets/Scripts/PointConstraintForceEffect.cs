@@ -32,12 +32,14 @@ namespace IVLab.MinVR3
             m_PhantomForceClient.Send(new VREventFloat("ForceEffect/PointConstraint/SetDynamicFriction", 0.2f));
             m_PhantomForceClient.Send(new VREventFloat("ForceEffect/PointConstraint/SetSnapDistance", 10.0f));
 
-            m_PhantomForceClient.Send(new VREvent("ForceEffect/PointConstraint/BeginPoints"));
-            foreach (Vector3 p in m_Points) {
-                m_PhantomForceClient.Send(new VREventVector3("ForceEffect/PointConstraint/AddVertex",
-                    m_PhantomForceClient.SwapCoordSystem(p)));
+            // The PhantomForceClient expects points in WORLD space. The points in our
+            // m_Points list are in the LOCAL space of this GameObject. We must
+            // transform them to world space before sending them to the client.
+            List<Vector3> worldPoints = new List<Vector3>();
+            foreach (var p in m_Points) {
+                worldPoints.Add(transform.TransformPoint(p));
             }
-            m_PhantomForceClient.Send(new VREvent("ForceEffect/PointConstraint/EndPoints"));
+            m_PhantomForceClient.pointConstraintPoints = worldPoints;
 
             m_PhantomForceClient.Send(new VREvent("ForceEffect/PointConstraint/Start"));
         }

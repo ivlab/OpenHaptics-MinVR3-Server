@@ -20,11 +20,6 @@ public:
     bool Init(const std::string &device_name = "Default PHANToM");    
     void RegisterForceEffect(ForceEffect* effect);
     void PollForInput();    
-    void Reset();
-
-    void OnUserModelToWorldTranslationUpdate(VREvent* e);
-    void OnUserModelToWorldRotationUpdate(VREvent* e);
-    void OnUserModelToWorldScaleUpdate(VREvent* e);
 
     void BeginHapticFrame();
     void DrawHaptics();
@@ -38,13 +33,10 @@ public:
     // Prints an error message and returns true if an error occurred, false is everything is ok
     static bool CheckHapticError();
 
+    // These return the stylus state in the raw, off-center, right-handed, millimeter-scale "Touch Space"
     double* touch_space_transform();
     double* touch_space_position();
     double* touch_space_rotation();
-
-    double* user_space_transform();
-    double* user_space_position();
-    double* user_space_rotation();
     
     double* custom_workspace_dims();
     double* custom_workspace_center();
@@ -52,9 +44,10 @@ public:
 
     bool is_primary_btn_down();
     bool is_in_custom_workspace();
+    void Reset();
     
 protected:
-    void RebuildUserModelToWorld();
+    void OnReset(VREvent* e);
     
     EventMgr* event_mgr_;
     HHD hd_device_;
@@ -66,24 +59,10 @@ protected:
     HDdouble custom_workspace_center_[3];
     HDdouble custom_workspace_size_[3];
     
-    // components of the user model_to_world matrix -- set individually through VREvents
-    hduVector3Dd user_model_to_world_translation_;
-    hduQuaternion user_model_to_world_rotation_;
-    hduVector3Dd user_model_to_world_scale_;
-    
-    // cached version of the complete user model_to_world matrix
-    hduMatrix user_model_to_world_matrix_;
-    // cached inverse of above
-    hduMatrix user_world_to_model_matrix_;
-    
     // cached stylus state -- updated at beginning of each frame
     hduMatrix touch_space_transform_;
     hduVector3Dd touch_space_position_;
     hduQuaternion touch_space_rotation_;
-    
-    hduMatrix user_space_transform_;
-    hduVector3Dd user_space_position_;
-    hduQuaternion user_space_rotation_;
 
     hduVector3Dd last_reported_position_;
     hduQuaternion last_reported_rotation_;

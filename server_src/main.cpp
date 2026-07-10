@@ -20,6 +20,7 @@
 #include "point_constraint.h"
 #include "surface_constraint.h"
 #include "surface_contact.h"
+#include "tangent_plane_constraint.h"
 
 
 // can be adjusted via command line options
@@ -40,6 +41,7 @@ void registerForceEffects() {
     phantom->RegisterForceEffect(new LineConstraint(event_mgr));
     phantom->RegisterForceEffect(new SurfaceConstraint(event_mgr));
     phantom->RegisterForceEffect(new SurfaceContact(event_mgr));
+    phantom->RegisterForceEffect(new TangentPlaneConstraint(event_mgr));
 }
 
 

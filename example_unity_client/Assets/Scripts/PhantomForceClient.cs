@@ -1,7 +1,5 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
-using System.Collections.Specialized;
-using System.Diagnostics;
 using System.Linq;
 using UnityEngine;
 
@@ -9,14 +7,6 @@ using UnityEngine;
 
 namespace IVLab.MinVR3
 {
-    /// <summary>
-    /// TODO:
-    /// - save this script, delete others
-    /// - revert to a 2019 project
-    /// - make unity scene that recreates the server's usual test scene
-    /// - might still work best with separate scripts to individually create / modify the various effects,
-    ///   at least for geometry ones where you might capture the geometry directly from a GameObject.
-    /// </summary>
     public class PhantomForceClient : MonoBehaviour, IVREventProducer
     {
         /// <summary>
@@ -27,55 +17,70 @@ namespace IVLab.MinVR3
         }
 
         /// <summary>
-        /// Current position of the Phantom stylus in the Phatom's notion of world coordinates, so this
-        /// takes into account the current model-to-world transformation, if any.
+        /// Current position of the Phantom stylus in Unity's world coordinates.
         /// </summary>
         public Vector3 stylusPosition {
             get => m_StylusPosition;
         }
 
         /// <summary>
-        /// Current rotation of the Phantom stylus in the Phatom's notion of world coordinates, so this
-        /// takes into account the current model-to-world transformation, if any.
+        /// Current rotation of the Phantom stylus in Unity's world coordinates.
         /// </summary>
         public Quaternion stylusRotation {
             get => m_StylusRotation;
         }
 
 
+        // --- Coordinate System Utilities ---
+
         /// <summary>
-        /// Translation component of the global model-to-world TRS matrix applied to all Phantom ForceEffects.
+        /// Converts a position from the server's raw Touch Space (Right-Handed, mm, off-center)
+        /// to Unity's world space. This assumes the HapticWorkspace GameObject has a scale
+        /// of (0.001, 0.001, 0.001) to handle unit conversion.
         /// </summary>
-        public Vector3 modelToWorldTranslation {
-            get => m_ModelToWorldTranslation;
-            set {
-                m_ModelToWorldTranslation = value;
-                m_ServerConnection.Send(new VREventVector3(m_ServerModelToWorldTranslationEventName,
-                    SwapCoordSystem(m_ModelToWorldTranslation)));
-            }
+        public Vector3 TouchSpaceToUnityWorld(Vector3 touchSpacePos)
+        {
+            if (HapticWorkspace.Instance == null) return Vector3.zero;
+
+            // 1. Flip the Z-axis to convert from right-handed to left-handed coordinates.
+            // The position is still in the server's raw, off-center millimeter space.
+            Vector3 unityLocalPos = new Vector3(touchSpacePos.x, touchSpacePos.y, -touchSpacePos.z);
+
+            // 2. Transform from the local space of the haptic workspace to Unity's world space.
+            // Unity's TransformPoint automatically applies the parent's scale (0.001),
+            // converting our millimeter-based local position to a meter-based world position.
+            return HapticWorkspace.Instance.transform.TransformPoint(unityLocalPos);
         }
 
         /// <summary>
-        /// Rotation component of the global model-to-world TRS matrix applied to all Phantom ForceEffects.
+        /// Converts a rotation from the server's Touch Space (Right-Handed) to Unity's world space.
         /// </summary>
-        public Quaternion modelToWorldRotation {
-            get => m_ModelToWorldRotation;
-            set {
-                m_ModelToWorldRotation = value;
-                m_ServerConnection.Send(new VREventQuaternion(m_ServerModelToWorldRotationEventName,
-                    SwapCoordSystem(m_ModelToWorldRotation)));
-            }
+        public Quaternion TouchSpaceToUnityWorld(Quaternion touchSpaceRot)
+        {
+            if (HapticWorkspace.Instance == null) return Quaternion.identity;
+
+            // 1. Convert from right-handed to left-handed quaternion.
+            Quaternion unityLocalRot = new Quaternion(-touchSpaceRot.x, touchSpaceRot.y, -touchSpaceRot.z, touchSpaceRot.w);
+
+            // 2. Transform from the local space of the haptic workspace to Unity's world space.
+            return HapticWorkspace.Instance.transform.rotation * unityLocalRot;
         }
 
         /// <summary>
-        /// Scale component of the global model-to-world TRS matrix applied to all Phantom ForceEffects.
+        /// Converts a position from Unity's world space to the server's raw Touch Space
+        /// (Right-Handed, mm, off-center). This assumes the HapticWorkspace GameObject has a scale
+        /// of (0.001, 0.001, 0.001) to handle unit conversion.
         /// </summary>
-        public Vector3 modelToWorldScale {
-            get => m_ModelToWorldScale;
-            set {
-                m_ModelToWorldScale = value;
-                m_ServerConnection.Send(new VREventVector3(m_ServerModelToWorldScaleEventName, m_ModelToWorldScale));
-            }
+        public Vector3 UnityWorldToTouchSpace(Vector3 unityWorldPos)
+        {
+            if (HapticWorkspace.Instance == null) return Vector3.zero;
+
+            // 1. Transform from Unity world space to the local space of the haptic workspace.
+            // Because the workspace has a scale of 0.001, the resulting local position will be in millimeters.
+            Vector3 unityLocalPos = HapticWorkspace.Instance.transform.InverseTransformPoint(unityWorldPos);
+
+            // 2. Convert from left-handed to right-handed coordinates by flipping Z.
+            return new Vector3(unityLocalPos.x, unityLocalPos.y, -unityLocalPos.z);
         }
 
 
@@ -232,7 +237,8 @@ namespace IVLab.MinVR3
             get => m_PointConstraintSnapDistance;
             set {
                 m_PointConstraintSnapDistance = value;
-                m_ServerConnection.Send(new VREventFloat("ForceEffect/PointConstraint/SetSnapDistance", m_PointConstraintSnapDistance));
+                // Snap distance is in mm, so we must scale it from Unity meters.
+                m_ServerConnection.Send(new VREventFloat("ForceEffect/PointConstraint/SetSnapDistance", m_PointConstraintSnapDistance * 1000.0f));
             }
         }
 
@@ -269,7 +275,8 @@ namespace IVLab.MinVR3
             m_ServerConnection.Send(new VREventFloat("ForceEffect/PointConstraint/SetDamping", m_PointConstraintDamping));
             m_ServerConnection.Send(new VREventFloat("ForceEffect/PointConstraint/SetStaticFriction", m_PointConstraintStaticFriction));
             m_ServerConnection.Send(new VREventFloat("ForceEffect/PointConstraint/SetDynamicFriction", m_PointConstraintDynamicFriction));
-            m_ServerConnection.Send(new VREventFloat("ForceEffect/PointConstraint/SetSnapDistance", m_PointConstraintSnapDistance));
+            // Snap distance is in mm, so we must scale it from Unity meters.
+            m_ServerConnection.Send(new VREventFloat("ForceEffect/PointConstraint/SetSnapDistance", m_PointConstraintSnapDistance * 1000.0f));
             if ((m_PointConstraintPoints != null) && (m_PointConstraintPoints.Count > 0)) {
                 PointConstraintSendPoints();
             }
@@ -282,8 +289,7 @@ namespace IVLab.MinVR3
         {
             m_ServerConnection.Send(new VREvent("ForceEffect/PointConstraint/BeginPoints"));
             foreach (Vector3 p in m_PointConstraintPoints) {
-                m_ServerConnection.Send(new VREventVector3("ForceEffect/PointConstraint/AddVertex",
-                    SwapCoordSystem(p)));
+                m_ServerConnection.Send(new VREventVector3("ForceEffect/PointConstraint/AddVertex", UnityWorldToTouchSpace(p)));
             }
             m_ServerConnection.Send(new VREvent("ForceEffect/PointConstraint/EndPoints"));
         }
@@ -346,7 +352,8 @@ namespace IVLab.MinVR3
             get => m_LineConstraintSnapDistance;
             set {
                 m_LineConstraintSnapDistance = value;
-                m_ServerConnection.Send(new VREventFloat("ForceEffect/LineConstraint/SetSnapDistance", m_LineConstraintSnapDistance));
+                // Snap distance is in mm, so we must scale it from Unity meters.
+                m_ServerConnection.Send(new VREventFloat("ForceEffect/LineConstraint/SetSnapDistance", m_LineConstraintSnapDistance * 1000.0f));
             }
         }
 
@@ -384,7 +391,8 @@ namespace IVLab.MinVR3
             m_ServerConnection.Send(new VREventFloat("ForceEffect/LineConstraint/SetDamping", m_LineConstraintDamping));
             m_ServerConnection.Send(new VREventFloat("ForceEffect/LineConstraint/SetStaticFriction", m_LineConstraintStaticFriction));
             m_ServerConnection.Send(new VREventFloat("ForceEffect/LineConstraint/SetDynamicFriction", m_LineConstraintDynamicFriction));
-            m_ServerConnection.Send(new VREventFloat("ForceEffect/LineConstraint/SetSnapDistance", m_LineConstraintSnapDistance));
+            // Snap distance is in mm, so we must scale it from Unity meters.
+            m_ServerConnection.Send(new VREventFloat("ForceEffect/LineConstraint/SetSnapDistance", m_LineConstraintSnapDistance * 1000.0f));
             if ((m_LineConstraintVertices != null) && (m_LineConstraintVertices.Count > 0)) {
                 LineConstraintSendVertices();
             }
@@ -397,8 +405,7 @@ namespace IVLab.MinVR3
         {
             m_ServerConnection.Send(new VREvent("ForceEffect/LineConstraint/BeginLines"));
             foreach (Vector3 p in m_LineConstraintVertices) {
-                m_ServerConnection.Send(new VREventVector3("ForceEffect/LineConstraint/AddVertex",
-                    SwapCoordSystem(p)));
+                m_ServerConnection.Send(new VREventVector3("ForceEffect/LineConstraint/AddVertex", UnityWorldToTouchSpace(p)));
             }
             m_ServerConnection.Send(new VREvent("ForceEffect/LineConstraint/EndLines"));
         }
@@ -461,7 +468,8 @@ namespace IVLab.MinVR3
             get => m_SurfaceConstraintSnapDistance;
             set {
                 m_SurfaceConstraintSnapDistance = value;
-                m_ServerConnection.Send(new VREventFloat("ForceEffect/SurfaceConstraint/SetSnapDistance", m_SurfaceConstraintSnapDistance));
+                // Snap distance is in mm, so we must scale it from Unity meters.
+                m_ServerConnection.Send(new VREventFloat("ForceEffect/SurfaceConstraint/SetSnapDistance", m_SurfaceConstraintSnapDistance * 1000.0f));
             }
         }
 
@@ -507,7 +515,8 @@ namespace IVLab.MinVR3
             m_ServerConnection.Send(new VREventFloat("ForceEffect/SurfaceConstraint/SetDamping", m_SurfaceConstraintDamping));
             m_ServerConnection.Send(new VREventFloat("ForceEffect/SurfaceConstraint/SetStaticFriction", m_SurfaceConstraintStaticFriction));
             m_ServerConnection.Send(new VREventFloat("ForceEffect/SurfaceConstraint/SetDynamicFriction", m_SurfaceConstraintDynamicFriction));
-            m_ServerConnection.Send(new VREventFloat("ForceEffect/SurfaceConstraint/SetSnapDistance", m_SurfaceConstraintSnapDistance));
+            // Snap distance is in mm, so we must scale it from Unity meters.
+            m_ServerConnection.Send(new VREventFloat("ForceEffect/SurfaceConstraint/SetSnapDistance", m_SurfaceConstraintSnapDistance * 1000.0f));
             if ((m_SurfaceConstraintIndices != null) && (m_SurfaceConstraintIndices.Count > 0)) {
                 SurfaceConstraintSendMesh();
             }
@@ -520,8 +529,7 @@ namespace IVLab.MinVR3
         {
             m_ServerConnection.Send(new VREvent("ForceEffect/SurfaceConstraint/BeginGeometry"));
             foreach (Vector3 p in m_SurfaceConstraintVertices) {
-                m_ServerConnection.Send(new VREventVector3("ForceEffect/SurfaceConstraint/AddVertex",
-                    SwapCoordSystem(p)));
+                m_ServerConnection.Send(new VREventVector3("ForceEffect/SurfaceConstraint/AddVertex", UnityWorldToTouchSpace(p)));
             }
             for (int i = 0; i < m_SurfaceConstraintIndices.Count; i += 3) {
                 m_ServerConnection.Send(new VREventVector3("ForceEffect/SurfaceConstraint/AddIndices",
@@ -640,8 +648,7 @@ namespace IVLab.MinVR3
         {
             m_ServerConnection.Send(new VREvent("ForceEffect/SurfaceContact/BeginGeometry"));
             foreach (Vector3 p in m_SurfaceContactVertices) {
-                m_ServerConnection.Send(new VREventVector3("ForceEffect/SurfaceContact/AddVertex",
-                    SwapCoordSystem(p)));
+                m_ServerConnection.Send(new VREventVector3("ForceEffect/SurfaceContact/AddVertex", UnityWorldToTouchSpace(p)));
             }
             for (int i = 0; i < m_SurfaceContactIndices.Count; i += 3) {
                 m_ServerConnection.Send(new VREventVector3("ForceEffect/SurfaceContact/AddIndices",
@@ -667,9 +674,6 @@ namespace IVLab.MinVR3
             m_ServerPhantomBtnUpEventName = "Phantom/Primary UP";
             m_ServerPhantomPositionEventName = "Phantom/Position";
             m_ServerPhantomRotationEventName = "Phantom/Rotation";
-            m_ServerModelToWorldTranslationEventName = "Phantom/ModelToWorld/Translation";
-            m_ServerModelToWorldRotationEventName = "Phantom/ModelToWorld/Rotation";
-            m_ServerModelToWorldScaleEventName = "Phantom/ModelToWorld/Scale";
 
             m_PhantomBtnDownEventName = "Phantom/PrimaryBtn/Down";
             m_PhantomBtnUpEventName = "Phantom/PrimaryBtn/Up";
@@ -679,10 +683,19 @@ namespace IVLab.MinVR3
 
         void Start()
         {
+            // If a specific workspace is not assigned, try to find the active singleton instance.
+            if (m_HapticWorkspace == null) {
+                m_HapticWorkspace = HapticWorkspace.Instance;
+            }
+
+            if (HapticWorkspace.Instance == null)
+            {
+                Debug.LogError("No HapticWorkspace found in the scene. A HapticWorkspace component is required to define the coordinate system. Disabling PhantomForceClient.");
+                this.enabled = false;
+                return;
+            }
+
             m_PrimaryBtnDown = false;
-            m_ModelToWorldTranslation = Vector3.zero;
-            m_ModelToWorldRotation = Quaternion.identity;
-            m_ModelToWorldScale = Vector3.one;
             m_ServerConnection.OnVREventReceived += OnVREventReceivedFromServer;
 
             // Stops any active force effects and resets the model-to-world matrix
@@ -696,24 +709,6 @@ namespace IVLab.MinVR3
             LineConstraintInit();
             SurfaceConstraintInit();
             SurfaceContactInit();
-        }
-
-        public Vector3 SwapCoordSystem(Vector3 v)
-        {
-            // negate the z coord of the axis because Unity is +Z forward and the Phantom is -Z forward
-            return new Vector3(v.x, v.y, -v.z);
-        }
-
-        Quaternion SwapCoordSystem(Quaternion q)
-        {
-            float angle;
-            Vector3 axis;
-            q.ToAngleAxis(out angle, out axis);
-            // negate the z coord of the axis because Unity is +Z forward and the Phantom is -Z forward
-            axis[2] = -axis[2];
-            // negate the angle because Unity is Left-Handed and the Phantom is Right-Handed
-            angle = -angle;
-            return Quaternion.AngleAxis(angle, axis);
         }
 
         void OnVREventReceivedFromServer(VREvent vrEvent)
@@ -732,7 +727,7 @@ namespace IVLab.MinVR3
             }
             else if (vrEvent.name == m_ServerPhantomPositionEventName)
             {
-                m_StylusPosition = SwapCoordSystem((vrEvent as VREventVector3).GetData());
+                m_StylusPosition = TouchSpaceToUnityWorld((vrEvent as VREventVector3).GetData());
 
                 VREngine.instance.eventManager.QueueEvent(new VREventVector3(m_PhantomPositionEventName, m_StylusPosition));
 
@@ -740,7 +735,7 @@ namespace IVLab.MinVR3
             }
             else if (vrEvent.name == m_ServerPhantomRotationEventName)
             {
-                m_StylusRotation = SwapCoordSystem((vrEvent as VREventQuaternion).GetData());
+                m_StylusRotation = TouchSpaceToUnityWorld((vrEvent as VREventQuaternion).GetData());
 
                 VREngine.instance.eventManager.QueueEvent(new VREventQuaternion(m_PhantomRotationEventName, m_StylusRotation));
             }
@@ -765,6 +760,9 @@ namespace IVLab.MinVR3
         [Header("Connection to ForceServer")]
         [SerializeField] private TcpJsonVREventConnection m_ServerConnection;
 
+        [Header("Coordinate System")]
+        [Tooltip("A reference to the HapticWorkspace object that defines the coordinate system for this client. If null, it will try to find the active HapticWorkspace instance.")]
+        [SerializeField] private HapticWorkspace m_HapticWorkspace;
         [Tooltip("Name of the event the ForceServer generates on Primary Button down.")]
         [SerializeField] private string m_ServerPhantomBtnDownEventName;
         [Tooltip("Name of the event the ForceServer generates on Primary Button up.")]
@@ -773,12 +771,6 @@ namespace IVLab.MinVR3
         [SerializeField] private string m_ServerPhantomPositionEventName;
         [Tooltip("Name of the event the ForceServer generates for stylus Rotation updates.")]
         [SerializeField] private string m_ServerPhantomRotationEventName;
-        [Tooltip("Name of the position event the ForceServer listens for to change the model-to-world matrix.")]
-        [SerializeField] private string m_ServerModelToWorldTranslationEventName;
-        [Tooltip("Name of the rotation event the ForceServer listens for to change the model-to-world matrix.")]
-        [SerializeField] private string m_ServerModelToWorldRotationEventName;
-        [Tooltip("Name of the scale event the ForceServer listens for to change the model-to-world matrix.")]
-        [SerializeField] private string m_ServerModelToWorldScaleEventName;
         [Tooltip("Prefix the ForceServer uses for ForceEffect commands.")]
         [SerializeField] private string m_ServerForceEffectEventPrefix;
 
@@ -843,11 +835,6 @@ namespace IVLab.MinVR3
         private bool m_PrimaryBtnDown;
         private Vector3 m_StylusPosition;
         private Quaternion m_StylusRotation;
-        private Vector3 m_ModelToWorldTranslation;
-        private Quaternion m_ModelToWorldRotation;
-        private Vector3 m_ModelToWorldScale;
-
-
 
 
 
@@ -862,7 +849,7 @@ namespace IVLab.MinVR3
         void SendTestButtonDownCommands()
         {
             m_ServerConnection.Send(new VREvent("ForceEffect/PointConstraint/BeginPoints"));
-            m_ServerConnection.Send(new VREventVector3("ForceEffect/PointConstraint/AddVertex", SwapCoordSystem(m_StylusPosition)));
+            m_ServerConnection.Send(new VREventVector3("ForceEffect/PointConstraint/AddVertex", UnityWorldToTouchSpace(m_StylusPosition)));
             m_ServerConnection.Send(new VREvent("ForceEffect/PointConstraint/EndPoints"));
             m_ServerConnection.Send(new VREvent("ForceEffect/PointConstraint/Start"));
         }
@@ -875,33 +862,34 @@ namespace IVLab.MinVR3
         void SendTestPositionMoveCommands()
         {
 
-            // apply ambient viscosity whenever the stylus is above the Y = 0mm plane, turn off when below
-            if ((m_StylusPosition[1] > 0) && (!m_ViscosityOn))
+            // apply ambient viscosity whenever the stylus is above the workspace's local Y=0 plane
+            Vector3 localPos = HapticWorkspace.Instance.transform.InverseTransformPoint(m_StylusPosition);
+            if ((localPos.y > 0) && (!m_ViscosityOn))
             {
                 m_ServerConnection.Send(new VREvent("ForceEffect/AmbientViscous/Start"));
                 m_ViscosityOn = true;
             }
-            else if ((m_StylusPosition[1] < 0) && (m_ViscosityOn))
+            else if ((localPos.y <= 0) && (m_ViscosityOn))
             {
                 m_ServerConnection.Send(new VREvent("ForceEffect/AmbientViscous/Stop"));
                 m_ViscosityOn = false;
             }
 
-            // apply ambient friction whenever the stylus is below the Y = 0mm plane, turn off when above
-            if ((m_StylusPosition[1] < 0) && (!m_FrictionOn))
+            // apply ambient friction whenever the stylus is below the workspace's local Y=0 plane
+            if ((localPos.y <= 0) && (!m_FrictionOn))
             {
                 m_ServerConnection.Send(new VREvent("ForceEffect/AmbientFriction/Start"));
                 m_FrictionOn = true;
             }
-            else if ((m_StylusPosition[1] > 0) && (m_FrictionOn))
+            else if ((localPos.y > 0) && (m_FrictionOn))
             {
                 m_ServerConnection.Send(new VREvent("ForceEffect/AmbientFriction/Stop"));
                 m_FrictionOn = false;
             }
 
             // change the gain of both ambient effects so they increase left to right
-            // should feel little or no effect when moving the stylus on the left and big effect on the right
-            float alpha = Mathf.Clamp((m_StylusPosition[0] + 300.0f) / 600.0f, 0.0f, 1.0f);
+            // The server's workspace is about 500mm wide.
+            float alpha = Mathf.Clamp((localPos.x * METERS_TO_MM + (HapticWorkspace.Instance.Size.x / 2.0f)) / HapticWorkspace.Instance.Size.x, 0.0f, 1.0f);
             m_ServerConnection.Send(new VREventFloat("ForceEffect/AmbientViscous/SetGain", alpha));
             m_ServerConnection.Send(new VREventFloat("ForceEffect/AmbientFriction/SetGain", alpha));
         }
@@ -909,13 +897,6 @@ namespace IVLab.MinVR3
 
         void SendTestStartCommands()
         {
-            // Examples of setting a global Model-to-World transformation
-            //m_ServerConnection.Send(new VREventVector3("Phantom/ModelToWorld/Translation", new Vector3(100, 0, 0)));
-            // 90 deg around Y
-            //m_ServerConnection.Send(new VREventQuaternion("Phantom/ModelToWorld/Rotation", new Vector3(0, 0.7071f, 0, 0.7071f)));
-            // 180 deg around Y
-            //m_ServerConnection.Send(new VREventQuaternion("Phantom/ModelToWorld/Rotation", new Quaternion(0, 1, 0, 0)));
-            //m_ServerConnection.Send(new VREventVector3("Phantom/ModelToWorld/Scale", new Vector3(0.5f, 0.5f, 0.5f)));
 
             m_ViscosityOn = false;
             m_ServerConnection.Send(new VREventFloat("ForceEffect/AmbientViscous/SetGain", 0.8f));
@@ -932,64 +913,7 @@ namespace IVLab.MinVR3
             m_ServerConnection.Send(new VREventFloat("ForceEffect/PointConstraint/SetSnapDistance", 10.0f));
 
             // a set of parallel lines to demonstrate line constraints
-            m_ServerConnection.Send(new VREvent("ForceEffect/LineConstraint/BeginLines"));
-            float left = -240;
-            float right = -20;
-            float xinc = 20;
-            float top = 150;
-            float bottom = -150;
-            for (float x = left; x <= right; x += xinc)
-            {
-                m_ServerConnection.Send(new VREventVector3("ForceEffect/LineConstraint/AddVertex", new Vector3(x, top, 0)));
-                m_ServerConnection.Send(new VREventVector3("ForceEffect/LineConstraint/AddVertex", new Vector3(x, bottom, 0)));
-            }
-            m_ServerConnection.Send(new VREvent("ForceEffect/LineConstraint/EndLines"));
-            m_ServerConnection.Send(new VREvent("ForceEffect/LineConstraint/Start"));
-
-
-            // a simple surface to demonstrate surface constraints
-            left = 50;
-            right = 175;
-            top = 150;
-            bottom = 50;
-            float back = -25;
-            float front = 25;
-            // signal start of mesh data
-            m_ServerConnection.Send(new VREvent("ForceEffect/SurfaceConstraint/BeginGeometry"));
-            // fill up vertex buffer
-            m_ServerConnection.Send(new VREventVector3("ForceEffect/SurfaceConstraint/AddVertex", new Vector3(left, top, back)));      // v0
-            m_ServerConnection.Send(new VREventVector3("ForceEffect/SurfaceConstraint/AddVertex", new Vector3(left, bottom, front)));  // v1
-            m_ServerConnection.Send(new VREventVector3("ForceEffect/SurfaceConstraint/AddVertex", new Vector3(right, bottom, front))); // v2
-            m_ServerConnection.Send(new VREventVector3("ForceEffect/SurfaceConstraint/AddVertex", new Vector3(right, top, back)));     // v3
-                                                                                                                                       // fill up indices buffer
-            m_ServerConnection.Send(new VREventVector3("ForceEffect/SurfaceConstraint/AddIndices", new Vector3(0, 1, 3)));  // triangle 0 = v0, v1, v3
-            m_ServerConnection.Send(new VREventVector3("ForceEffect/SurfaceConstraint/AddIndices", new Vector3(3, 1, 2)));  // triangle 1 = v3, v1, v2
-                                                                                                                            // signal end of mesh data
-            m_ServerConnection.Send(new VREvent("ForceEffect/SurfaceConstraint/EndGeometry"));
-            // start applying forces
-            m_ServerConnection.Send(new VREvent("ForceEffect/SurfaceConstraint/Start"));
-
-            // a simple surface to demonstrate surface contact
-            left = 50;
-            right = 175;
-            top = -50;
-            bottom = -150;
-            back = -25;
-            front = 25;
-            // signal start of mesh data
-            m_ServerConnection.Send(new VREvent("ForceEffect/SurfaceContact/BeginGeometry"));
-            // fill up vertex buffer
-            m_ServerConnection.Send(new VREventVector3("ForceEffect/SurfaceContact/AddVertex", new Vector3(left, top, back)));      // v0
-            m_ServerConnection.Send(new VREventVector3("ForceEffect/SurfaceContact/AddVertex", new Vector3(left, bottom, front)));  // v1
-            m_ServerConnection.Send(new VREventVector3("ForceEffect/SurfaceContact/AddVertex", new Vector3(right, bottom, front))); // v2
-            m_ServerConnection.Send(new VREventVector3("ForceEffect/SurfaceContact/AddVertex", new Vector3(right, top, back)));     // v3
-                                                                                                                                    // fill up indices buffer
-            m_ServerConnection.Send(new VREventVector3("ForceEffect/SurfaceContact/AddIndices", new Vector3(0, 1, 3)));  // triangle 0 = v0, v1, v3
-            m_ServerConnection.Send(new VREventVector3("ForceEffect/SurfaceContact/AddIndices", new Vector3(3, 1, 2)));  // triangle 1 = v3, v1, v2
-                                                                                                                         // signal end of mesh data
-            m_ServerConnection.Send(new VREvent("ForceEffect/SurfaceContact/EndGeometry"));
-            // start applying forces
-            m_ServerConnection.Send(new VREvent("ForceEffect/SurfaceContact/Start"));
+            // The test commands have been moved to a separate example script to keep this client script clean.
         }
 
 
