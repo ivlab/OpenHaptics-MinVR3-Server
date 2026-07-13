@@ -70,18 +70,21 @@ void PointConstraint::Reset() {
 void PointConstraint::OnBeginPoints(VREvent* e) {
     // add to a tmp buffer and only "commit" the vertices to the points list used in the
     // haptic draw method after receiving ALL of the points.
+    //std::cout << "PointConstraint: Receiving new points..." << std::endl;
     points_tmp_buffer_.clear();
 }
 
 void PointConstraint::OnAddVertex(VREvent* e) {
     VREventVector3* e_p = dynamic_cast<VREventVector3*>(e);
     if (e_p != NULL) { // should always pass
+        //std::cout << "  - Adding vertex: (" << e_p->x() << ", " << e_p->y() << ", " << e_p->z() << ")" << std::endl;
         hduVector3Df v(e_p->x(), e_p->y(), e_p->z());
         points_tmp_buffer_.push_back(v);
     }
 }
 
 void PointConstraint::OnEndPoints(VREvent* e) {
+    //std::cout << "PointConstraint: ... finished receiving " << points_tmp_buffer_.size() << " points." << std::endl;
     points_ = points_tmp_buffer_;
 }
 

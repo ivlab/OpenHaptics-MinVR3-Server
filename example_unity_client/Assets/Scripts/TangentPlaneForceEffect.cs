@@ -81,22 +81,15 @@ namespace IVLab.MinVR3
                 Vector3 contactPoint = hit.point;
                 Vector3 surfaceNormal = hit.normal;
 
-                VREvent e = new VREvent("ForceEffect/TangentPlaneConstraint/SetContactData");
-
-                // The server expects separate float values for each component.
                 Vector3 touchSpacePoint = m_PhantomForceClient.UnityWorldToTouchSpace(contactPoint);
-                e.AddData("contactPointX", touchSpacePoint.x);
-                e.AddData("contactPointY", touchSpacePoint.y);
-                e.AddData("contactPointZ", touchSpacePoint.z);
+                VREventVector3 e1 = new VREventVector3("ForceEffect/TangentPlaneConstraint/SetContactPoint", touchSpacePoint);
+                m_PhantomForceClient.Send(e1);
 
                 // Normals also need to be transformed. We can reuse the position conversion logic
                 // as it correctly handles the handedness flip.
                 Vector3 touchSpaceNormal = m_PhantomForceClient.UnityWorldToTouchSpace(surfaceNormal) - m_PhantomForceClient.UnityWorldToTouchSpace(Vector3.zero);
-                e.AddData("surfaceNormalX", touchSpaceNormal.x);
-                e.AddData("surfaceNormalY", touchSpaceNormal.y);
-                e.AddData("surfaceNormalZ", touchSpaceNormal.z);
-
-                m_PhantomForceClient.Send(e);
+                VREventVector3 e2 = new VREventVector3("ForceEffect/TangentPlaneConstraint/SetSurfaceNormal", touchSpaceNormal);
+                m_PhantomForceClient.Send(e2);
             }
         }
     }

@@ -43,7 +43,16 @@ namespace IVLab.MinVR3
         void Start()
         {
             Debug.Assert(m_PhantomForceClient != null, "PhantomForceClient must be assigned.");
+        }
+
+        private void OnEnable()
+        {
             StartEffect();
+        }
+
+        private void OnDisable()
+        {
+            StopEffect();
         }
 
         [Tooltip("Client object that manages the network connection to the ForceServer.")]

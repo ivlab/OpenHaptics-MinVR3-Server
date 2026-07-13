@@ -60,7 +60,7 @@ namespace IVLab.MinVR3
             if (HapticWorkspace.Instance == null) return Quaternion.identity;
 
             // 1. Convert from right-handed to left-handed quaternion.
-            Quaternion unityLocalRot = new Quaternion(-touchSpaceRot.x, touchSpaceRot.y, -touchSpaceRot.z, touchSpaceRot.w);
+            Quaternion unityLocalRot = new Quaternion(touchSpaceRot.x, -touchSpaceRot.y, touchSpaceRot.z, -touchSpaceRot.w);
 
             // 2. Transform from the local space of the haptic workspace to Unity's world space.
             return HapticWorkspace.Instance.transform.rotation * unityLocalRot;
@@ -102,7 +102,7 @@ namespace IVLab.MinVR3
             get => m_AmbientFrictionGain;
             set {
                 m_AmbientFrictionGain = value;
-                m_ServerConnection.Send(new VREventFloat("ForceEffect/AmbientFriction/SetGain", m_AmbientFrictionGain));
+                m_ServerConnection.Send(new VREventFloat(m_ServerForceEffectEventPrefix + "AmbientFriction/SetGain", m_AmbientFrictionGain));
             }
         }
 
@@ -110,24 +110,24 @@ namespace IVLab.MinVR3
             get => m_AmbientFrictionMagnitudeCap;
             set {
                 m_AmbientFrictionMagnitudeCap = value;
-                m_ServerConnection.Send(new VREventFloat("ForceEffect/AmbientFriction/SetMagnitudeCap", m_AmbientFrictionMagnitudeCap));
+                m_ServerConnection.Send(new VREventFloat(m_ServerForceEffectEventPrefix + "AmbientFriction/SetMagnitudeCap", m_AmbientFrictionMagnitudeCap));
             }
         }
 
         public void StartAmbientFrictionEffect()
         {
-            m_ServerConnection.Send(new VREvent("ForceEffect/AmbientFriction/Start"));
+            m_ServerConnection.Send(new VREvent(m_ServerForceEffectEventPrefix + "AmbientFriction/Start"));
         }
 
         public void StopAmbientFrictionEffect()
         {
-            m_ServerConnection.Send(new VREvent("ForceEffect/AmbientFriction/Stop"));
+            m_ServerConnection.Send(new VREvent(m_ServerForceEffectEventPrefix + "AmbientFriction/Stop"));
         }
 
         void AmbientFrictionInit()
         {
-            m_ServerConnection.Send(new VREventFloat("ForceEffect/AmbientFriction/SetGain", m_AmbientFrictionGain));
-            m_ServerConnection.Send(new VREventFloat("ForceEffect/AmbientFriction/SetMagnitudeCap", m_AmbientFrictionMagnitudeCap));
+            m_ServerConnection.Send(new VREventFloat(m_ServerForceEffectEventPrefix + "AmbientFriction/SetGain", m_AmbientFrictionGain));
+            m_ServerConnection.Send(new VREventFloat(m_ServerForceEffectEventPrefix + "AmbientFriction/SetMagnitudeCap", m_AmbientFrictionMagnitudeCap));
             if (m_AmbientFrictionActive) {
                 StartAmbientFrictionEffect();
             }
@@ -154,7 +154,7 @@ namespace IVLab.MinVR3
             get => m_AmbientViscosityGain;
             set {
                 m_AmbientViscosityGain = value;
-                m_ServerConnection.Send(new VREventFloat("ForceEffect/AmbientViscosity/SetGain", m_AmbientViscosityGain));
+                m_ServerConnection.Send(new VREventFloat(m_ServerForceEffectEventPrefix + "AmbientViscosity/SetGain", m_AmbientViscosityGain));
             }
         }
 
@@ -162,24 +162,24 @@ namespace IVLab.MinVR3
             get => m_AmbientViscosityMagnitudeCap;
             set {
                 m_AmbientViscosityMagnitudeCap = value;
-                m_ServerConnection.Send(new VREventFloat("ForceEffect/AmbientViscosity/SetMagnitudeCap", m_AmbientViscosityMagnitudeCap));
+                m_ServerConnection.Send(new VREventFloat(m_ServerForceEffectEventPrefix + "AmbientViscosity/SetMagnitudeCap", m_AmbientViscosityMagnitudeCap));
             }
         }
 
         public void StartAmbientViscosityEffect()
         {
-            m_ServerConnection.Send(new VREvent("ForceEffect/AmbientViscosity/Start"));
+            m_ServerConnection.Send(new VREvent(m_ServerForceEffectEventPrefix + "AmbientViscosity/Start"));
         }
 
         public void StopAmbientViscosityEffect()
         {
-            m_ServerConnection.Send(new VREvent("ForceEffect/AmbientViscosity/Stop"));
+            m_ServerConnection.Send(new VREvent(m_ServerForceEffectEventPrefix + "AmbientViscosity/Stop"));
         }
 
         void AmbientViscosityInit()
         {
-            m_ServerConnection.Send(new VREventFloat("ForceEffect/AmbientViscosity/SetGain", m_AmbientViscosityGain));
-            m_ServerConnection.Send(new VREventFloat("ForceEffect/AmbientViscosity/SetMagnitudeCap", m_AmbientViscosityMagnitudeCap));
+            m_ServerConnection.Send(new VREventFloat(m_ServerForceEffectEventPrefix + "AmbientViscosity/SetGain", m_AmbientViscosityGain));
+            m_ServerConnection.Send(new VREventFloat(m_ServerForceEffectEventPrefix + "AmbientViscosity/SetMagnitudeCap", m_AmbientViscosityMagnitudeCap));
             if (m_AmbientViscosityActive) {
                 StartAmbientViscosityEffect();
             }
@@ -205,7 +205,7 @@ namespace IVLab.MinVR3
             get => m_PointConstraintStiffness;
             set {
                 m_PointConstraintStiffness = value;
-                m_ServerConnection.Send(new VREventFloat("ForceEffect/PointConstraint/SetStiffness", m_PointConstraintStiffness));
+                m_ServerConnection.Send(new VREventFloat(m_ServerForceEffectEventPrefix + "PointConstraint/SetStiffness", m_PointConstraintStiffness));
             }
         }
 
@@ -213,7 +213,7 @@ namespace IVLab.MinVR3
             get => m_PointConstraintDamping;
             set {
                 m_PointConstraintDamping = value;
-                m_ServerConnection.Send(new VREventFloat("ForceEffect/PointConstraint/SetDamping", m_PointConstraintDamping));
+                m_ServerConnection.Send(new VREventFloat(m_ServerForceEffectEventPrefix + "PointConstraint/SetDamping", m_PointConstraintDamping));
             }
         }
 
@@ -221,7 +221,7 @@ namespace IVLab.MinVR3
             get => m_PointConstraintStaticFriction;
             set {
                 m_PointConstraintStaticFriction = value;
-                m_ServerConnection.Send(new VREventFloat("ForceEffect/PointConstraint/SetStaticFriction", m_PointConstraintStaticFriction));
+                m_ServerConnection.Send(new VREventFloat(m_ServerForceEffectEventPrefix + "PointConstraint/SetStaticFriction", m_PointConstraintStaticFriction));
             }
         }
 
@@ -229,7 +229,7 @@ namespace IVLab.MinVR3
             get => m_PointConstraintDynamicFriction;
             set {
                 m_PointConstraintDynamicFriction = value;
-                m_ServerConnection.Send(new VREventFloat("ForceEffect/PointConstraint/SetDynamicFriction", m_PointConstraintDynamicFriction));
+                m_ServerConnection.Send(new VREventFloat(m_ServerForceEffectEventPrefix + "PointConstraint/SetDynamicFriction", m_PointConstraintDynamicFriction));
             }
         }
 
@@ -238,7 +238,7 @@ namespace IVLab.MinVR3
             set {
                 m_PointConstraintSnapDistance = value;
                 // Snap distance is in mm, so we must scale it from Unity meters.
-                m_ServerConnection.Send(new VREventFloat("ForceEffect/PointConstraint/SetSnapDistance", m_PointConstraintSnapDistance * 1000.0f));
+                m_ServerConnection.Send(new VREventFloat(m_ServerForceEffectEventPrefix + "PointConstraint/SetSnapDistance", m_PointConstraintSnapDistance * 1000.0f));
             }
         }
 
@@ -266,17 +266,17 @@ namespace IVLab.MinVR3
 
         public void StartPointConstraintEffect()
         {
-            m_ServerConnection.Send(new VREvent("ForceEffect/PointConstraint/Start"));
+            m_ServerConnection.Send(new VREvent(m_ServerForceEffectEventPrefix + "PointConstraint/Start"));
         }
 
         void PointConstraintInit()
         {
-            m_ServerConnection.Send(new VREventFloat("ForceEffect/PointConstraint/SetStiffness", m_PointConstraintStiffness));
-            m_ServerConnection.Send(new VREventFloat("ForceEffect/PointConstraint/SetDamping", m_PointConstraintDamping));
-            m_ServerConnection.Send(new VREventFloat("ForceEffect/PointConstraint/SetStaticFriction", m_PointConstraintStaticFriction));
-            m_ServerConnection.Send(new VREventFloat("ForceEffect/PointConstraint/SetDynamicFriction", m_PointConstraintDynamicFriction));
+            m_ServerConnection.Send(new VREventFloat(m_ServerForceEffectEventPrefix + "PointConstraint/SetStiffness", m_PointConstraintStiffness));
+            m_ServerConnection.Send(new VREventFloat(m_ServerForceEffectEventPrefix + "PointConstraint/SetDamping", m_PointConstraintDamping));
+            m_ServerConnection.Send(new VREventFloat(m_ServerForceEffectEventPrefix + "PointConstraint/SetStaticFriction", m_PointConstraintStaticFriction));
+            m_ServerConnection.Send(new VREventFloat(m_ServerForceEffectEventPrefix + "PointConstraint/SetDynamicFriction", m_PointConstraintDynamicFriction));
             // Snap distance is in mm, so we must scale it from Unity meters.
-            m_ServerConnection.Send(new VREventFloat("ForceEffect/PointConstraint/SetSnapDistance", m_PointConstraintSnapDistance * 1000.0f));
+            m_ServerConnection.Send(new VREventFloat(m_ServerForceEffectEventPrefix + "PointConstraint/SetSnapDistance", m_PointConstraintSnapDistance * 1000.0f));
             if ((m_PointConstraintPoints != null) && (m_PointConstraintPoints.Count > 0)) {
                 PointConstraintSendPoints();
             }
@@ -287,16 +287,16 @@ namespace IVLab.MinVR3
 
         void PointConstraintSendPoints()
         {
-            m_ServerConnection.Send(new VREvent("ForceEffect/PointConstraint/BeginPoints"));
+            m_ServerConnection.Send(new VREvent(m_ServerForceEffectEventPrefix + "PointConstraint/BeginPoints"));
             foreach (Vector3 p in m_PointConstraintPoints) {
-                m_ServerConnection.Send(new VREventVector3("ForceEffect/PointConstraint/AddVertex", UnityWorldToTouchSpace(p)));
+                m_ServerConnection.Send(new VREventVector3(m_ServerForceEffectEventPrefix + "PointConstraint/AddVertex", UnityWorldToTouchSpace(p)));
             }
-            m_ServerConnection.Send(new VREvent("ForceEffect/PointConstraint/EndPoints"));
+            m_ServerConnection.Send(new VREvent(m_ServerForceEffectEventPrefix + "PointConstraint/EndPoints"));
         }
 
         public void StopPointConstraintEffect()
         {
-            m_ServerConnection.Send(new VREvent("ForceEffect/PointConstraint/Stop"));
+            m_ServerConnection.Send(new VREvent(m_ServerForceEffectEventPrefix + "PointConstraint/Stop"));
         }
 
 
@@ -320,7 +320,7 @@ namespace IVLab.MinVR3
             get => m_LineConstraintStiffness;
             set {
                 m_LineConstraintStiffness = value;
-                m_ServerConnection.Send(new VREventFloat("ForceEffect/LineConstraint/SetStiffness", m_LineConstraintStiffness));
+                m_ServerConnection.Send(new VREventFloat(m_ServerForceEffectEventPrefix + "LineConstraint/SetStiffness", m_LineConstraintStiffness));
             }
         }
 
@@ -328,7 +328,7 @@ namespace IVLab.MinVR3
             get => m_LineConstraintDamping;
             set {
                 m_LineConstraintDamping = value;
-                m_ServerConnection.Send(new VREventFloat("ForceEffect/LineConstraint/SetDamping", m_LineConstraintDamping));
+                m_ServerConnection.Send(new VREventFloat(m_ServerForceEffectEventPrefix + "LineConstraint/SetDamping", m_LineConstraintDamping));
             }
         }
 
@@ -336,7 +336,7 @@ namespace IVLab.MinVR3
             get => m_LineConstraintStaticFriction;
             set {
                 m_LineConstraintStaticFriction = value;
-                m_ServerConnection.Send(new VREventFloat("ForceEffect/LineConstraint/SetStaticFriction", m_LineConstraintStaticFriction));
+                m_ServerConnection.Send(new VREventFloat(m_ServerForceEffectEventPrefix + "LineConstraint/SetStaticFriction", m_LineConstraintStaticFriction));
             }
         }
 
@@ -344,7 +344,7 @@ namespace IVLab.MinVR3
             get => m_LineConstraintDynamicFriction;
             set {
                 m_LineConstraintDynamicFriction = value;
-                m_ServerConnection.Send(new VREventFloat("ForceEffect/LineConstraint/SetDynamicFriction", m_LineConstraintDynamicFriction));
+                m_ServerConnection.Send(new VREventFloat(m_ServerForceEffectEventPrefix + "LineConstraint/SetDynamicFriction", m_LineConstraintDynamicFriction));
             }
         }
 
@@ -353,7 +353,7 @@ namespace IVLab.MinVR3
             set {
                 m_LineConstraintSnapDistance = value;
                 // Snap distance is in mm, so we must scale it from Unity meters.
-                m_ServerConnection.Send(new VREventFloat("ForceEffect/LineConstraint/SetSnapDistance", m_LineConstraintSnapDistance * 1000.0f));
+                m_ServerConnection.Send(new VREventFloat(m_ServerForceEffectEventPrefix + "LineConstraint/SetSnapDistance", m_LineConstraintSnapDistance * 1000.0f));
             }
         }
 
@@ -382,17 +382,17 @@ namespace IVLab.MinVR3
 
         public void StartLineConstraintEffect()
         {
-            m_ServerConnection.Send(new VREvent("ForceEffect/LineConstraint/Start"));
+            m_ServerConnection.Send(new VREvent(m_ServerForceEffectEventPrefix + "LineConstraint/Start"));
         }
 
         void LineConstraintInit()
         {
-            m_ServerConnection.Send(new VREventFloat("ForceEffect/LineConstraint/SetStiffness", m_LineConstraintStiffness));
-            m_ServerConnection.Send(new VREventFloat("ForceEffect/LineConstraint/SetDamping", m_LineConstraintDamping));
-            m_ServerConnection.Send(new VREventFloat("ForceEffect/LineConstraint/SetStaticFriction", m_LineConstraintStaticFriction));
-            m_ServerConnection.Send(new VREventFloat("ForceEffect/LineConstraint/SetDynamicFriction", m_LineConstraintDynamicFriction));
+            m_ServerConnection.Send(new VREventFloat(m_ServerForceEffectEventPrefix + "LineConstraint/SetStiffness", m_LineConstraintStiffness));
+            m_ServerConnection.Send(new VREventFloat(m_ServerForceEffectEventPrefix + "LineConstraint/SetDamping", m_LineConstraintDamping));
+            m_ServerConnection.Send(new VREventFloat(m_ServerForceEffectEventPrefix + "LineConstraint/SetStaticFriction", m_LineConstraintStaticFriction));
+            m_ServerConnection.Send(new VREventFloat(m_ServerForceEffectEventPrefix + "LineConstraint/SetDynamicFriction", m_LineConstraintDynamicFriction));
             // Snap distance is in mm, so we must scale it from Unity meters.
-            m_ServerConnection.Send(new VREventFloat("ForceEffect/LineConstraint/SetSnapDistance", m_LineConstraintSnapDistance * 1000.0f));
+            m_ServerConnection.Send(new VREventFloat(m_ServerForceEffectEventPrefix + "LineConstraint/SetSnapDistance", m_LineConstraintSnapDistance * 1000.0f));
             if ((m_LineConstraintVertices != null) && (m_LineConstraintVertices.Count > 0)) {
                 LineConstraintSendVertices();
             }
@@ -403,16 +403,16 @@ namespace IVLab.MinVR3
 
         void LineConstraintSendVertices()
         {
-            m_ServerConnection.Send(new VREvent("ForceEffect/LineConstraint/BeginLines"));
+            m_ServerConnection.Send(new VREvent(m_ServerForceEffectEventPrefix + "LineConstraint/BeginLines"));
             foreach (Vector3 p in m_LineConstraintVertices) {
-                m_ServerConnection.Send(new VREventVector3("ForceEffect/LineConstraint/AddVertex", UnityWorldToTouchSpace(p)));
+                m_ServerConnection.Send(new VREventVector3(m_ServerForceEffectEventPrefix + "LineConstraint/AddVertex", UnityWorldToTouchSpace(p)));
             }
-            m_ServerConnection.Send(new VREvent("ForceEffect/LineConstraint/EndLines"));
+            m_ServerConnection.Send(new VREvent(m_ServerForceEffectEventPrefix + "LineConstraint/EndLines"));
         }
 
         public void StopLineConstraintEffect()
         {
-            m_ServerConnection.Send(new VREvent("ForceEffect/LineConstraint/Stop"));
+            m_ServerConnection.Send(new VREvent(m_ServerForceEffectEventPrefix + "LineConstraint/Stop"));
         }
 
 
@@ -436,7 +436,7 @@ namespace IVLab.MinVR3
             get => m_SurfaceConstraintStiffness;
             set {
                 m_SurfaceConstraintStiffness = value;
-                m_ServerConnection.Send(new VREventFloat("ForceEffect/SurfaceConstraint/SetStiffness", m_SurfaceConstraintStiffness));
+                m_ServerConnection.Send(new VREventFloat(m_ServerForceEffectEventPrefix + "SurfaceConstraint/SetStiffness", m_SurfaceConstraintStiffness));
             }
         }
 
@@ -444,7 +444,7 @@ namespace IVLab.MinVR3
             get => m_SurfaceConstraintDamping;
             set {
                 m_SurfaceConstraintDamping = value;
-                m_ServerConnection.Send(new VREventFloat("ForceEffect/SurfaceConstraint/SetDamping", m_SurfaceConstraintDamping));
+                m_ServerConnection.Send(new VREventFloat(m_ServerForceEffectEventPrefix + "SurfaceConstraint/SetDamping", m_SurfaceConstraintDamping));
             }
         }
 
@@ -452,7 +452,7 @@ namespace IVLab.MinVR3
             get => m_SurfaceConstraintStaticFriction;
             set {
                 m_SurfaceConstraintStaticFriction = value;
-                m_ServerConnection.Send(new VREventFloat("ForceEffect/SurfaceConstraint/SetStaticFriction", m_SurfaceConstraintStaticFriction));
+                m_ServerConnection.Send(new VREventFloat(m_ServerForceEffectEventPrefix + "SurfaceConstraint/SetStaticFriction", m_SurfaceConstraintStaticFriction));
             }
         }
 
@@ -460,7 +460,7 @@ namespace IVLab.MinVR3
             get => m_SurfaceConstraintDynamicFriction;
             set {
                 m_SurfaceConstraintDynamicFriction = value;
-                m_ServerConnection.Send(new VREventFloat("ForceEffect/SurfaceConstraint/SetDynamicFriction", m_SurfaceConstraintDynamicFriction));
+                m_ServerConnection.Send(new VREventFloat(m_ServerForceEffectEventPrefix + "SurfaceConstraint/SetDynamicFriction", m_SurfaceConstraintDynamicFriction));
             }
         }
 
@@ -469,7 +469,7 @@ namespace IVLab.MinVR3
             set {
                 m_SurfaceConstraintSnapDistance = value;
                 // Snap distance is in mm, so we must scale it from Unity meters.
-                m_ServerConnection.Send(new VREventFloat("ForceEffect/SurfaceConstraint/SetSnapDistance", m_SurfaceConstraintSnapDistance * 1000.0f));
+                m_ServerConnection.Send(new VREventFloat(m_ServerForceEffectEventPrefix + "SurfaceConstraint/SetSnapDistance", m_SurfaceConstraintSnapDistance * 1000.0f));
             }
         }
 
@@ -506,17 +506,17 @@ namespace IVLab.MinVR3
 
         public void StartSurfaceConstraintEffect()
         {
-            m_ServerConnection.Send(new VREvent("ForceEffect/SurfaceConstraint/Start"));
+            m_ServerConnection.Send(new VREvent(m_ServerForceEffectEventPrefix + "SurfaceConstraint/Start"));
         }
 
         void SurfaceConstraintInit()
         {
-            m_ServerConnection.Send(new VREventFloat("ForceEffect/SurfaceConstraint/SetStiffness", m_SurfaceConstraintStiffness));
-            m_ServerConnection.Send(new VREventFloat("ForceEffect/SurfaceConstraint/SetDamping", m_SurfaceConstraintDamping));
-            m_ServerConnection.Send(new VREventFloat("ForceEffect/SurfaceConstraint/SetStaticFriction", m_SurfaceConstraintStaticFriction));
-            m_ServerConnection.Send(new VREventFloat("ForceEffect/SurfaceConstraint/SetDynamicFriction", m_SurfaceConstraintDynamicFriction));
+            m_ServerConnection.Send(new VREventFloat(m_ServerForceEffectEventPrefix + "SurfaceConstraint/SetStiffness", m_SurfaceConstraintStiffness));
+            m_ServerConnection.Send(new VREventFloat(m_ServerForceEffectEventPrefix + "SurfaceConstraint/SetDamping", m_SurfaceConstraintDamping));
+            m_ServerConnection.Send(new VREventFloat(m_ServerForceEffectEventPrefix + "SurfaceConstraint/SetStaticFriction", m_SurfaceConstraintStaticFriction));
+            m_ServerConnection.Send(new VREventFloat(m_ServerForceEffectEventPrefix + "SurfaceConstraint/SetDynamicFriction", m_SurfaceConstraintDynamicFriction));
             // Snap distance is in mm, so we must scale it from Unity meters.
-            m_ServerConnection.Send(new VREventFloat("ForceEffect/SurfaceConstraint/SetSnapDistance", m_SurfaceConstraintSnapDistance * 1000.0f));
+            m_ServerConnection.Send(new VREventFloat(m_ServerForceEffectEventPrefix + "SurfaceConstraint/SetSnapDistance", m_SurfaceConstraintSnapDistance * 1000.0f));
             if ((m_SurfaceConstraintIndices != null) && (m_SurfaceConstraintIndices.Count > 0)) {
                 SurfaceConstraintSendMesh();
             }
@@ -527,23 +527,23 @@ namespace IVLab.MinVR3
 
         void SurfaceConstraintSendMesh()
         {
-            m_ServerConnection.Send(new VREvent("ForceEffect/SurfaceConstraint/BeginGeometry"));
+            m_ServerConnection.Send(new VREvent(m_ServerForceEffectEventPrefix + "SurfaceConstraint/BeginGeometry"));
             foreach (Vector3 p in m_SurfaceConstraintVertices) {
-                m_ServerConnection.Send(new VREventVector3("ForceEffect/SurfaceConstraint/AddVertex", UnityWorldToTouchSpace(p)));
+                m_ServerConnection.Send(new VREventVector3(m_ServerForceEffectEventPrefix + "SurfaceConstraint/AddVertex", UnityWorldToTouchSpace(p)));
             }
             for (int i = 0; i < m_SurfaceConstraintIndices.Count; i += 3) {
-                m_ServerConnection.Send(new VREventVector3("ForceEffect/SurfaceConstraint/AddIndices",
+                m_ServerConnection.Send(new VREventVector3(m_ServerForceEffectEventPrefix + "SurfaceConstraint/AddIndices",
                     new Vector3(m_SurfaceConstraintIndices[i],
                                 m_SurfaceConstraintIndices[i + 1],
                                 m_SurfaceConstraintIndices[i + 2])));
             }
 
-            m_ServerConnection.Send(new VREvent("ForceEffect/SurfaceConstraint/EndGeometry"));
+            m_ServerConnection.Send(new VREvent(m_ServerForceEffectEventPrefix + "SurfaceConstraint/EndGeometry"));
         }
 
         public void StopSurfaceConstraintEffect()
         {
-            m_ServerConnection.Send(new VREvent("ForceEffect/SurfaceConstraint/Stop"));
+            m_ServerConnection.Send(new VREvent(m_ServerForceEffectEventPrefix + "SurfaceConstraint/Stop"));
         }
 
 
@@ -567,7 +567,7 @@ namespace IVLab.MinVR3
             get => m_SurfaceContactStiffness;
             set {
                 m_SurfaceContactStiffness = value;
-                m_ServerConnection.Send(new VREventFloat("ForceEffect/SurfaceContact/SetStiffness", m_SurfaceContactStiffness));
+                m_ServerConnection.Send(new VREventFloat(m_ServerForceEffectEventPrefix + "SurfaceContact/SetStiffness", m_SurfaceContactStiffness));
             }
         }
 
@@ -575,7 +575,7 @@ namespace IVLab.MinVR3
             get => m_SurfaceContactDamping;
             set {
                 m_SurfaceContactDamping = value;
-                m_ServerConnection.Send(new VREventFloat("ForceEffect/SurfaceContact/SetDamping", m_SurfaceContactDamping));
+                m_ServerConnection.Send(new VREventFloat(m_ServerForceEffectEventPrefix + "SurfaceContact/SetDamping", m_SurfaceContactDamping));
             }
         }
 
@@ -583,7 +583,7 @@ namespace IVLab.MinVR3
             get => m_SurfaceContactStaticFriction;
             set {
                 m_SurfaceContactStaticFriction = value;
-                m_ServerConnection.Send(new VREventFloat("ForceEffect/SurfaceContact/SetStaticFriction", m_SurfaceContactStaticFriction));
+                m_ServerConnection.Send(new VREventFloat(m_ServerForceEffectEventPrefix + "SurfaceContact/SetStaticFriction", m_SurfaceContactStaticFriction));
             }
         }
 
@@ -591,7 +591,7 @@ namespace IVLab.MinVR3
             get => m_SurfaceContactDynamicFriction;
             set {
                 m_SurfaceContactDynamicFriction = value;
-                m_ServerConnection.Send(new VREventFloat("ForceEffect/SurfaceContact/SetDynamicFriction", m_SurfaceContactDynamicFriction));
+                m_ServerConnection.Send(new VREventFloat(m_ServerForceEffectEventPrefix + "SurfaceContact/SetDynamicFriction", m_SurfaceContactDynamicFriction));
             }
         }
 
@@ -627,15 +627,15 @@ namespace IVLab.MinVR3
 
         public void StartSurfaceContactEffect()
         {
-            m_ServerConnection.Send(new VREvent("ForceEffect/SurfaceContact/Start"));
+            m_ServerConnection.Send(new VREvent(m_ServerForceEffectEventPrefix + "SurfaceContact/Start"));
         }
 
         void SurfaceContactInit()
         {
-            m_ServerConnection.Send(new VREventFloat("ForceEffect/SurfaceContact/SetStiffness", m_SurfaceContactStiffness));
-            m_ServerConnection.Send(new VREventFloat("ForceEffect/SurfaceContact/SetDamping", m_SurfaceContactDamping));
-            m_ServerConnection.Send(new VREventFloat("ForceEffect/SurfaceContact/SetStaticFriction", m_SurfaceContactStaticFriction));
-            m_ServerConnection.Send(new VREventFloat("ForceEffect/SurfaceContact/SetDynamicFriction", m_SurfaceContactDynamicFriction));
+            m_ServerConnection.Send(new VREventFloat(m_ServerForceEffectEventPrefix + "SurfaceContact/SetStiffness", m_SurfaceContactStiffness));
+            m_ServerConnection.Send(new VREventFloat(m_ServerForceEffectEventPrefix + "SurfaceContact/SetDamping", m_SurfaceContactDamping));
+            m_ServerConnection.Send(new VREventFloat(m_ServerForceEffectEventPrefix + "SurfaceContact/SetStaticFriction", m_SurfaceContactStaticFriction));
+            m_ServerConnection.Send(new VREventFloat(m_ServerForceEffectEventPrefix + "SurfaceContact/SetDynamicFriction", m_SurfaceContactDynamicFriction));
             if ((m_SurfaceContactIndices != null) && (m_SurfaceContactIndices.Count > 0)) {
                 SurfaceContactSendMesh();
             }
@@ -646,23 +646,23 @@ namespace IVLab.MinVR3
 
         void SurfaceContactSendMesh()
         {
-            m_ServerConnection.Send(new VREvent("ForceEffect/SurfaceContact/BeginGeometry"));
+            m_ServerConnection.Send(new VREvent(m_ServerForceEffectEventPrefix + "SurfaceContact/BeginGeometry"));
             foreach (Vector3 p in m_SurfaceContactVertices) {
-                m_ServerConnection.Send(new VREventVector3("ForceEffect/SurfaceContact/AddVertex", UnityWorldToTouchSpace(p)));
+                m_ServerConnection.Send(new VREventVector3(m_ServerForceEffectEventPrefix + "SurfaceContact/AddVertex", UnityWorldToTouchSpace(p)));
             }
             for (int i = 0; i < m_SurfaceContactIndices.Count; i += 3) {
-                m_ServerConnection.Send(new VREventVector3("ForceEffect/SurfaceContact/AddIndices",
+                m_ServerConnection.Send(new VREventVector3(m_ServerForceEffectEventPrefix + "SurfaceContact/AddIndices",
                     new Vector3(m_SurfaceContactIndices[i],
                                 m_SurfaceContactIndices[i + 1],
                                 m_SurfaceContactIndices[i + 2])));
             }
 
-            m_ServerConnection.Send(new VREvent("ForceEffect/SurfaceContact/EndGeometry"));
+            m_ServerConnection.Send(new VREvent(m_ServerForceEffectEventPrefix + "SurfaceContact/EndGeometry"));
         }
 
         public void StopSurfaceContactEffect()
         {
-            m_ServerConnection.Send(new VREvent("ForceEffect/SurfaceContact/Stop"));
+            m_ServerConnection.Send(new VREvent(m_ServerForceEffectEventPrefix + "SurfaceContact/Stop"));
         }
 
 
@@ -679,6 +679,9 @@ namespace IVLab.MinVR3
             m_PhantomBtnUpEventName = "Phantom/PrimaryBtn/Up";
             m_PhantomPositionEventName = "Phantom/Position";
             m_PhantomRotationEventName = "Phantom/Rotation";
+
+            m_ServerForceEffectEventPrefix = "ForceEffect/";
+            m_ServerConnection = GetComponent<TcpJsonVREventConnection>();
         }
 
         void Start()
@@ -716,27 +719,19 @@ namespace IVLab.MinVR3
             if (vrEvent.name == m_ServerPhantomBtnDownEventName) {
                 m_PrimaryBtnDown = true;
                 VREngine.instance.eventManager.QueueEvent(new VREvent(m_PhantomBtnDownEventName));
-
-                SendTestButtonDownCommands();
             } 
             else if (vrEvent.name == m_ServerPhantomBtnUpEventName) {
                 m_PrimaryBtnDown = false;
                 VREngine.instance.eventManager.QueueEvent(new VREvent(m_PhantomBtnUpEventName));
-
-                SendTestButtonUpCommands();
             }
             else if (vrEvent.name == m_ServerPhantomPositionEventName)
             {
                 m_StylusPosition = TouchSpaceToUnityWorld((vrEvent as VREventVector3).GetData());
-
                 VREngine.instance.eventManager.QueueEvent(new VREventVector3(m_PhantomPositionEventName, m_StylusPosition));
-
-                SendTestPositionMoveCommands();
             }
             else if (vrEvent.name == m_ServerPhantomRotationEventName)
             {
                 m_StylusRotation = TouchSpaceToUnityWorld((vrEvent as VREventQuaternion).GetData());
-
                 VREngine.instance.eventManager.QueueEvent(new VREventQuaternion(m_PhantomRotationEventName, m_StylusRotation));
             }
         }
@@ -836,86 +831,6 @@ namespace IVLab.MinVR3
         private Vector3 m_StylusPosition;
         private Quaternion m_StylusRotation;
 
-
-
-
-
-
-
-
-        bool m_ViscosityOn = false;
-        bool m_FrictionOn = false;
-
-        void SendTestButtonDownCommands()
-        {
-            m_ServerConnection.Send(new VREvent("ForceEffect/PointConstraint/BeginPoints"));
-            m_ServerConnection.Send(new VREventVector3("ForceEffect/PointConstraint/AddVertex", UnityWorldToTouchSpace(m_StylusPosition)));
-            m_ServerConnection.Send(new VREvent("ForceEffect/PointConstraint/EndPoints"));
-            m_ServerConnection.Send(new VREvent("ForceEffect/PointConstraint/Start"));
-        }
-
-        void SendTestButtonUpCommands()
-        {
-            m_ServerConnection.Send(new VREvent("ForceEffect/PointConstraint/Stop"));
-        }
-
-        void SendTestPositionMoveCommands()
-        {
-
-            // apply ambient viscosity whenever the stylus is above the workspace's local Y=0 plane
-            Vector3 localPos = HapticWorkspace.Instance.transform.InverseTransformPoint(m_StylusPosition);
-            if ((localPos.y > 0) && (!m_ViscosityOn))
-            {
-                m_ServerConnection.Send(new VREvent("ForceEffect/AmbientViscous/Start"));
-                m_ViscosityOn = true;
-            }
-            else if ((localPos.y <= 0) && (m_ViscosityOn))
-            {
-                m_ServerConnection.Send(new VREvent("ForceEffect/AmbientViscous/Stop"));
-                m_ViscosityOn = false;
-            }
-
-            // apply ambient friction whenever the stylus is below the workspace's local Y=0 plane
-            if ((localPos.y <= 0) && (!m_FrictionOn))
-            {
-                m_ServerConnection.Send(new VREvent("ForceEffect/AmbientFriction/Start"));
-                m_FrictionOn = true;
-            }
-            else if ((localPos.y > 0) && (m_FrictionOn))
-            {
-                m_ServerConnection.Send(new VREvent("ForceEffect/AmbientFriction/Stop"));
-                m_FrictionOn = false;
-            }
-
-            // change the gain of both ambient effects so they increase left to right
-            // The server's workspace is about 500mm wide.
-            float alpha = Mathf.Clamp((localPos.x * METERS_TO_MM + (HapticWorkspace.Instance.Size.x / 2.0f)) / HapticWorkspace.Instance.Size.x, 0.0f, 1.0f);
-            m_ServerConnection.Send(new VREventFloat("ForceEffect/AmbientViscous/SetGain", alpha));
-            m_ServerConnection.Send(new VREventFloat("ForceEffect/AmbientFriction/SetGain", alpha));
-        }
-
-
-        void SendTestStartCommands()
-        {
-
-            m_ViscosityOn = false;
-            m_ServerConnection.Send(new VREventFloat("ForceEffect/AmbientViscous/SetGain", 0.8f));
-            m_ServerConnection.Send(new VREventFloat("ForceEffect/AmbientViscous/SetMagnitudeCap", 1.0f));
-
-            m_FrictionOn = false;
-            m_ServerConnection.Send(new VREventFloat("ForceEffect/AmbientFriction/SetGain", 0.1f));
-            m_ServerConnection.Send(new VREventFloat("ForceEffect/AmbientFriction/SetMagnitudeCap", 0.1f));
-
-            m_ServerConnection.Send(new VREventFloat("ForceEffect/PointConstraint/SetStiffness", 0.8f));
-            m_ServerConnection.Send(new VREventFloat("ForceEffect/PointConstraint/SetDamping", 0.2f));
-            m_ServerConnection.Send(new VREventFloat("ForceEffect/PointConstraint/SetStaticFriction", 0.2f));
-            m_ServerConnection.Send(new VREventFloat("ForceEffect/PointConstraint/SetDynamicFriction", 0.2f));
-            m_ServerConnection.Send(new VREventFloat("ForceEffect/PointConstraint/SetSnapDistance", 10.0f));
-
-            // a set of parallel lines to demonstrate line constraints
-            // The test commands have been moved to a separate example script to keep this client script clean.
-        }
-
-
+        private const float METERS_TO_MM = 1000.0f;
     }
 }

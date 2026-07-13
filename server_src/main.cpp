@@ -277,7 +277,7 @@ void readFromClient() {
         if (MinVR3Net::TryAcceptConnection(listener_fd, &new_client_fd)) {
             phantom->Reset();
             client_fd = new_client_fd;
-            //std::cout << "New Connection" << std::endl;
+            std::cout << "New Connection" << std::endl;
         }
     }
     
